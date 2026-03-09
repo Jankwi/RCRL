@@ -1,0 +1,2 @@
+run.num_epochs = 10
+run.architecture = "RNN"
