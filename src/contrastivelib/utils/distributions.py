@@ -21,3 +21,13 @@ class DistributionSampler():
             self.geom.sample(inclusive_high.shape).to(torch.long),
             inclusive_high.to(torch.long)) + 1
         )
+
+    def clamped_geometric(self, inclusive_high: torch.Tensor):
+        """
+            Samples numbers from [1, inclusive_high] from a geometric distribution,
+            by clamping samples drawn above this range
+        """
+        return torch.clamp(
+            self.geom.sample(inclusive_high.shape).to(torch.long) + 1,
+            max=inclusive_high
+        )

@@ -1,7 +1,9 @@
+.agents/
 .pytest_cache/
 .venv/
 data/
 __pycache__/
 */__pycache__/
 */*/__pycache__/
+local_experiments/
 wandb/

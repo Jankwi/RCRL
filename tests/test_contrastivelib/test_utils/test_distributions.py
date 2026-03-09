@@ -21,6 +21,36 @@ class TestDistributionSampler:
     @pytest.mark.parametrize('gamma', [0.5, 0.9])
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     @pytest.mark.parametrize('inclusive_high_list', [[3, 2], [1, 1]])
+    def test_clamped_geometric(self, gamma, device, inclusive_high_list):
+        """Tests DistributionSampler's clamped_geometric method's convergence"""
+        if device == 'cuda' and not torch.cuda.is_available():
+            pytest.skip('CUDA not available')
+
+        torch.manual_seed(self.seed)
+        sampler = DistributionSampler(gamma=gamma, device=device)
+
+        inclusive_high = torch.tensor(inclusive_high_list, device=device)
+        batch = inclusive_high.unsqueeze(0).expand(self.num_samples, -1)
+        samples = sampler.clamped_geometric(batch)
+
+        for idx, n in enumerate(inclusive_high_list):
+            expected_list = [(1-gamma) * (gamma**(k-1)) for k in range(1, n)]
+            expected_list.append(
+                1 - sum(expected_list) if len(expected_list) > 0
+                else 1
+            )
+            expected = torch.tensor(expected_list, device=device).float()
+
+            col = samples[:, idx]
+            freq = torch.zeros(n, device=device)
+            for j in range(1, n + 1):
+                freq[j - 1] = (col == j).float().mean()
+            print(f'{freq=} {expected=}')
+            assert_close(freq, expected, atol=self.geometric_atol, rtol=0.0)
+
+    @pytest.mark.parametrize('gamma', [0.5, 0.9])
+    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
+    @pytest.mark.parametrize('inclusive_high_list', [[3, 2], [1, 1]])
     def test_bounded_geometric(self, gamma, device, inclusive_high_list):
         """Tests DistributionSampler's bounded_geometric method's convergence"""
         if device == 'cuda' and not torch.cuda.is_available():
