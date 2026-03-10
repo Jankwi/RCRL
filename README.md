@@ -21,9 +21,9 @@ export wandb_project=your-wandb-project
 ### Runner
 Then, you can simply launch the runner with the desired config, by calling:
 ```bash
-uv run python runner.py --config_file configs/hello_world.gin
+uv run python runner.py --config_file configs/train/maze-simple-vibe/vibe-train.gin
 ```
 If you wish to override some of the variabkes from the config, then run it with gin bindings:
 ```bash
-uv run python runner.py --config_file configs/hello_world.gin --gin_bindings 'run.architecture="Transformer"'
+uv run python runner.py --config_file configs/train/maze-simple-vibe/vibe-train.gin --gin_bindings 'TrainJob.seed=1'
 ```

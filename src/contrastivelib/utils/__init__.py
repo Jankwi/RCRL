@@ -1,12 +1,14 @@
 """Utils for contrastivelib"""
 import random
-
+import numpy as np
 import torch
 
 
-def fix_seed(seed: int = 42):
-    """Fixes random seeds for reproducibility across random, torch, and CUDA."""
+def fix_seed(seed: int):
+    """Fixes random seeds for reproducibility across many libraries"""
     random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)

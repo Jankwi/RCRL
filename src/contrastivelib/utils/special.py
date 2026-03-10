@@ -29,16 +29,16 @@ class SpecialStateManager():
 class SpecialStateModelWrapper(nn.Module):
     """Module wrapper: returns an embedding for the special token, base model output otherwise"""
 
-    def __init__(self, base_model: nn.Module, spec_manager: SpecialStateManager, embed_dim: int):
+    def __init__(self, base_model: nn.Module, spec_mgr: SpecialStateManager, embed_dim: int):
         super().__init__()
         self.base_model = base_model
-        self.spec_manager = spec_manager
+        self.spec_mgr = spec_mgr
         self.embed_dim = embed_dim
         self.special_embed = nn.Parameter(torch.randn(embed_dim))
 
     def forward(self, x):
-        spec_mask = self.spec_manager.detect_special_states(x)
-        result = torch.zeros(x.shape[0], self.embed_dim, device=self.spec_manager.device)
+        spec_mask = self.spec_mgr.detect_special_states(x)
+        result = torch.zeros(x.shape[0], self.embed_dim, device=self.spec_mgr.device)
         result[spec_mask] += self.special_embed
         result[~spec_mask] = self.base_model(x[~spec_mask])
         return result

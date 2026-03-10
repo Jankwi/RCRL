@@ -1,0 +1,16 @@
+run.job_class = @TrainJob
+    TrainJob.embed_dim = 32
+    TrainJob.metric_name = 'dot'
+    TrainJob.normalize = True
+    TrainJob.seed = 0
+    TrainJob.train_dataset_path = 'data/maze-simple-vibe/train'
+    TrainJob.epochs = 100
+    TrainJob.spec_mgr_class = @SpecialStateManager
+        SpecialStateManager.val = -1
+        SpecialStateManager.shape = (20, 20)
+    TrainJob.base_model_class = @BroNet
+        BroNet.input_dim = 400
+    TrainJob.logger_class = @StdOutLogger
+    TrainJob.dataset_class = @SimplestContrastiveDataset
+        SimplestContrastiveDataset.batch_size = 256
+        SimplestContrastiveDataset.repetition_factor = 2

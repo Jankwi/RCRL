@@ -37,8 +37,8 @@ class TestSpecialStateManager:
             states[pos] = val
 
         # Initialize manager and test
-        spec_manager = SpecialStateManager(val=val, device=device, shape=shape)
-        result_mask = spec_manager.detect_special_states(states)
+        spec_mgr = SpecialStateManager(val=val, device=device, shape=shape)
+        result_mask = spec_mgr.detect_special_states(states)
 
         assert_close(result_mask, expected_mask)
 
@@ -63,8 +63,8 @@ class TestSpecialStateManager:
         expected_tensor = torch.full(expected_shape, val, device=device)
 
         # Initialize manager and create states
-        spec_manager = SpecialStateManager(val=val, device=device, shape=shape)
-        result = spec_manager.create_many(n_states)
+        spec_mgr = SpecialStateManager(val=val, device=device, shape=shape)
+        result = spec_mgr.create_many(n_states)
 
         # Verify shape
         assert result.shape == expected_shape, (
@@ -105,13 +105,13 @@ class TestSpecialStateModelWrapper():
         if device == 'cuda' and not torch.cuda.is_available():
             pytest.skip('CUDA not available')
 
-        spec_manager = SpecialStateManager(val=self.val, shape=shape, device=device)
+        spec_mgr = SpecialStateManager(val=self.val, shape=shape, device=device)
         data_dim, embed_dim = shape[0] * shape[1], shape[0]
         base_model = nn.Sequential(
             nn.Flatten(),
             nn.Linear(data_dim, embed_dim),
         ).to(device)
-        model = SpecialStateModelWrapper(base_model, spec_manager, embed_dim).to(device)
+        model = SpecialStateModelWrapper(base_model, spec_mgr, embed_dim).to(device)
 
         train_X = torch.rand(train_sz, *shape, device=device)
         test_X = torch.rand(test_sz, *shape, device=device)

@@ -4,11 +4,13 @@ import re
 from abc import abstractmethod
 from typing import Dict, List
 
+import gin
 import joblib
 import torch
 from torch.utils.data import IterableDataset
 
 
+@gin.configurable
 class AbstractContrastiveDataset(IterableDataset):
     """
         Abstract class implementing utils for contrative datasets,

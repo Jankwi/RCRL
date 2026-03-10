@@ -7,7 +7,7 @@ class DistributionSampler():
         self.device = device
         if gamma is not None:
             # [Pytorch docs]: (k+1)-th trial is the first success hence draws samples in {0,1,…}.
-            self.geom = Geometric(probs=torch.tensor((1-gamma), device = self.device))
+            self.geom = Geometric(probs=torch.tensor((1-gamma), device=self.device))
 
     def bounded_uniform(self, exclusive_high: torch.Tensor):
         """Samples numbers from [0, exclusive_high) from a uniform distribution"""

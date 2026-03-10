@@ -1,40 +1,26 @@
 import argparse
-import os
-import random
+from typing import Dict, Type
 
 import gin
 
-import wandb
+from src.jobs import AbstractJob
+from src.jobs.train_job import *  # noqa: F403
+
+
+def gin_config_to_dict(config_str: str) -> Dict[str, str]:
+    result = {}
+    for line in config_str.splitlines():
+        line = line.strip()
+        if line and not line.startswith('#'):
+            key, _, value = line.partition(' = ')
+            result[key] = value
+    return result
 
 
 @gin.configurable
-def run(num_epochs: int, architecture: str):
-    # Start a new wandb run to track this script.
-    wandb_run = wandb.init(
-        # Set the wandb entity where your project will be logged (generally your team name).
-        entity=os.environ.get('wandb_entity'),
-        # Set the wandb project where this run will be logged.
-        project=os.environ.get('wandb_project'),
-        # Track hyperparameters and run metadata.
-        config={
-            "learning_rate": 0.02,
-            "architecture": architecture,
-            "dataset": "hello-world-message",
-            "epochs": num_epochs,
-        },
-    )
-
-    # Simulate training.
-    offset = random.random() / 5
-    for epoch in range(2, num_epochs):
-        acc = 1 - 2**-epoch - random.random() / epoch - offset
-        loss = 2**-epoch + random.random() / epoch + offset
-
-        # Log metrics to wandb.
-        wandb_run.log({"acc": acc, "loss": loss})
-
-    # Finish the run and upload any remaining data.
-    wandb_run.finish()
+def run(job_class: Type[AbstractJob], gin_config: Dict[str, str]):
+    job = job_class(gin_config=gin_config)
+    job.execute()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -44,7 +30,7 @@ if __name__ == "__main__":
         nargs='*',
         default=[],
         metavar='BIND',
-        help='Gin bindings like "run.seed=123" "train_job_baseline.lr=1e-4"'
+        help='Gin bindings like "run.Trainjob.seed=1"'
     )
 
     args = parser.parse_args()
@@ -53,7 +39,5 @@ if __name__ == "__main__":
         bindings=args.gin_bindings
     )
 
-    print("==== Final Config (after overrides) ====")
-    print(f"{gin.config_str()=}")
-
-    print(f"{run()=}")
+    print("====Starting run====")
+    run(gin_config=gin_config_to_dict(gin.config_str()))

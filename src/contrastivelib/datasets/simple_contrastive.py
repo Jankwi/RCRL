@@ -14,14 +14,14 @@ class SimplestContrastiveDataset(AbstractContrastiveDataset):
         maps the out of range indices to the special states.
     """
     def __init__(self, file_sets_path: str, batch_size: int, device: torch.device,
-            spec_manager: SpecialStateManager, gamma: float = 0.9, repetition_factor: int = 1,
+            spec_mgr: SpecialStateManager, gamma: float = 0.9, repetition_factor: int = 1,
         ):
         super().__init__(
             file_sets_path=file_sets_path, tensor_names=['lengths'], device=device,
             chunk_size=int(batch_size/repetition_factor)
         )
         self.device = device
-        self.spec_manager = spec_manager
+        self.spec_mgr = spec_mgr
         self.repetition_factor = repetition_factor
         self.sampler = DistributionSampler(device=self.device, gamma=gamma)
 
@@ -30,7 +30,7 @@ class SimplestContrastiveDataset(AbstractContrastiveDataset):
         lengths = torch.repeat_interleave(lengths, self.repetition_factor, dim=0)
         batch_idx = torch.arange(len(trajectories), device=self.device)
 
-        spec_states = self.spec_manager.create_many(len(trajectories))
+        spec_states = self.spec_mgr.create_many(len(trajectories))
         trajectories = torch.cat((trajectories, spec_states.unsqueeze(1)), dim=1)
         trajectories[batch_idx, lengths] = spec_states
 
