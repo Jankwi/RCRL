@@ -6,7 +6,7 @@ import torch.nn.functional as f
 
 @gin.configurable
 class BroBlock(nn.Module):
-    def __init__(self, dim: int, dropout: float):
+    def __init__(self, dim: int, dropout: float) -> None:
         super().__init__()
         self.layers = nn.Sequential(
             nn.Linear(dim, dim),
@@ -18,14 +18,17 @@ class BroBlock(nn.Module):
             nn.Dropout(dropout),
         )
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         return x + self.layers(x)
+
 
 @gin.configurable
 class BroNet(nn.Module):
     """BRO nn.Module based on the BRO paper (https://arxiv.org/pdf/2405.16158)"""
-    def __init__(self, input_dim=400, embed_dim=32,
-                normalize_output: bool = True, dropout: float = 0.1):
+
+    def __init__(
+        self, input_dim=400, embed_dim=32, normalize_output: bool = True, dropout: float = 0.1
+    ) -> None:
         super().__init__()
         self.layers = nn.Sequential(
             nn.Flatten(),
@@ -39,7 +42,7 @@ class BroNet(nn.Module):
         self.normalize_output = normalize_output
         self.repr_dim = embed_dim
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         x = self.layers(x.to(torch.float))
 
         if self.normalize_output:

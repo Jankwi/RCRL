@@ -1,10 +1,12 @@
 """Utils for contrastivelib"""
+
 import random
+
 import numpy as np
 import torch
 
 
-def fix_seed(seed: int):
+def fix_seed(seed: int) -> None:
     """Fixes random seeds for reproducibility across many libraries"""
     random.seed(seed)
     np.random.seed(seed)

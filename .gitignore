@@ -1,5 +1,6 @@
 .agents/
 .pytest_cache/
+.ruff_cache/
 .venv/
 data/
 __pycache__/

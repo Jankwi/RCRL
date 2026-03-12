@@ -22,22 +22,20 @@ def run(job_class: Type[AbstractJob], gin_config: Dict[str, str]):
     job = job_class(gin_config=gin_config)
     job.execute()
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config_file", required=True, help="Path to the config file")
+    parser.add_argument('--config_file', required=True, help='Path to the config file')
     parser.add_argument(
-        "--gin_bindings",
+        '--gin_bindings',
         nargs='*',
         default=[],
         metavar='BIND',
-        help='Gin bindings like "run.Trainjob.seed=1"'
+        help='Gin bindings like "run.Trainjob.seed=1"',
     )
 
     args = parser.parse_args()
-    gin.parse_config_files_and_bindings(
-        config_files=[args.config_file],
-        bindings=args.gin_bindings
-    )
+    gin.parse_config_files_and_bindings(config_files=[args.config_file], bindings=args.gin_bindings)
 
-    print("====Starting run====")
+    print('====Starting run====')
     run(gin_config=gin_config_to_dict(gin.config_str()))

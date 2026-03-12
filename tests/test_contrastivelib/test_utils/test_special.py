@@ -74,7 +74,8 @@ class TestSpecialStateManager:
         # Verify all values are val
         assert_close(result, expected_tensor)
 
-class TestSpecialStateModelWrapper():
+
+class TestSpecialStateModelWrapper:
     """Tests for the SpecialStateModelWrapper class"""
 
     def setup_method(self, method):
@@ -83,9 +84,14 @@ class TestSpecialStateModelWrapper():
         self.seed = 42
         torch.manual_seed(self.seed)
 
-    def fit_model(self, model: nn.Module, train_X: torch.Tensor, train_y: torch.Tensor,
-                num_epochs: int = 2000, lr: float = 0.05
-        ):
+    def fit_model(
+        self,
+        model: nn.Module,
+        train_X: torch.Tensor,
+        train_y: torch.Tensor,
+        num_epochs: int = 2000,
+        lr: float = 0.05,
+    ):
         optimizer, loss_fn = Adam(model.parameters(), lr=lr), nn.MSELoss()
         for _ in range(num_epochs):
             optimizer.zero_grad()
@@ -94,12 +100,14 @@ class TestSpecialStateModelWrapper():
             optimizer.step()
         optimizer.zero_grad()
 
-
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    @pytest.mark.parametrize('shape,train_sz,test_sz,spec_train_pos,spec_test_pos', [
-        ((1, 2), 17, 10, [2, 4, 10], [3, 7]),
-        ((3, 3), 20, 40, [1], []),
-    ])
+    @pytest.mark.parametrize(
+        'shape,train_sz,test_sz,spec_train_pos,spec_test_pos',
+        [
+            ((1, 2), 17, 10, [2, 4, 10], [3, 7]),
+            ((3, 3), 20, 40, [1], []),
+        ],
+    )
     def test_wrapped_model(self, shape, train_sz, test_sz, spec_train_pos, spec_test_pos, device):
         """Tests SpecialStateModelWrapper's forward pass with special states"""
         if device == 'cuda' and not torch.cuda.is_available():

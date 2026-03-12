@@ -11,6 +11,7 @@ def _normalize(t: torch.Tensor) -> torch.Tensor:
 
 class TestDistributionSampler:
     """Convergence tests for the DistributionSampler class"""
+
     def setup_method(self, method):
         self.num_samples = 2_000
         self.num_interleave_reps = 1_000
@@ -34,11 +35,8 @@ class TestDistributionSampler:
         samples = sampler.clamped_geometric(batch)
 
         for idx, n in enumerate(inclusive_high_list):
-            expected_list = [(1-gamma) * (gamma**(k-1)) for k in range(1, n)]
-            expected_list.append(
-                1 - sum(expected_list) if len(expected_list) > 0
-                else 1
-            )
+            expected_list = [(1 - gamma) * (gamma ** (k - 1)) for k in range(1, n)]
+            expected_list.append(1 - sum(expected_list) if len(expected_list) > 0 else 1)
             expected = torch.tensor(expected_list, device=device).float()
 
             col = samples[:, idx]
@@ -64,9 +62,12 @@ class TestDistributionSampler:
         samples = sampler.bounded_geometric(batch)
 
         for idx, n in enumerate(inclusive_high_list):
-            expected = _normalize(torch.tensor(
-                [gamma**k for k in range(1, n + 1)], device=device,
-            ))
+            expected = _normalize(
+                torch.tensor(
+                    [gamma**k for k in range(1, n + 1)],
+                    device=device,
+                )
+            )
             col = samples[:, idx]
             freq = torch.zeros(n, device=device)
             for j in range(1, n + 1):
@@ -103,8 +104,8 @@ class TestDistributionSampler:
     @pytest.mark.parametrize('inclusive_high_list', [[2, 1, 7], [5, 3]])
     def test_interleave(self, gamma, device, n_list, inclusive_high_list):
         """
-            Tests the converegnce of DistributionSampler's bounded_geometric and bounded_uniform
-            methods, while interlaving the calls
+        Tests the converegnce of DistributionSampler's bounded_geometric and bounded_uniform
+        methods, while interlaving the calls
         """
         if device == 'cuda' and not torch.cuda.is_available():
             pytest.skip('CUDA not available')
@@ -138,9 +139,12 @@ class TestDistributionSampler:
 
         # Check geometric frequencies
         for idx, n in enumerate(inclusive_high_list):
-            expected = _normalize(torch.tensor(
-                [gamma**k for k in range(1, n + 1)], device=device,
-            ))
+            expected = _normalize(
+                torch.tensor(
+                    [gamma**k for k in range(1, n + 1)],
+                    device=device,
+                )
+            )
             col = g_all[:, idx]
             freq = torch.zeros(n, device=device)
             for j in range(1, n + 1):

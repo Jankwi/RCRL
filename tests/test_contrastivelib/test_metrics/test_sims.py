@@ -44,31 +44,38 @@ def cross_sim_data(device, latent_dim, normalize):
         expected = torch.zeros((latent_dim, latent_dim), device=device)
         for i in range(latent_dim):
             for j in range(latent_dim):
-                expected[i][j] = sim_fn(
-                    a[i].unsqueeze(0), b[j].unsqueeze(0), 'elementwise'
-                ).item()
+                expected[i][j] = sim_fn(a[i].unsqueeze(0), b[j].unsqueeze(0), 'elementwise').item()
         return expected
 
     return a, b, normalize, build_expected
 
 
-class TestL2SimilarityMeasure():
+class TestL2SimilarityMeasure:
     """Tests for the L2 (Euclidean distance) similarity measure."""
 
     def setup_method(self, method):
         self.seed = 42
         fix_seed(self.seed)
 
-    @pytest.mark.parametrize('a, b, normalize, expected', [
-        ([[1., 0.]], [[0., 1.]], False, [math.sqrt(2)]),
-        ([[1., 0.]], [[0., 1.]], True, [math.sqrt(2)]),
-        ([[3., 2., 5.], [2., 1., 7.]], [[3., 0., 5.], [1., -2., 5.]], False, [2., math.sqrt(14)]),
-        (
-            [[2*math.sqrt(2), 2*math.sqrt(2)], [0., 1.]],
-            [[1., 1.], [1, 0]], True,
-            [0., math.sqrt(2)]
-         )
-    ])
+    @pytest.mark.parametrize(
+        'a, b, normalize, expected',
+        [
+            ([[1.0, 0.0]], [[0.0, 1.0]], False, [math.sqrt(2)]),
+            ([[1.0, 0.0]], [[0.0, 1.0]], True, [math.sqrt(2)]),
+            (
+                [[3.0, 2.0, 5.0], [2.0, 1.0, 7.0]],
+                [[3.0, 0.0, 5.0], [1.0, -2.0, 5.0]],
+                False,
+                [2.0, math.sqrt(14)],
+            ),
+            (
+                [[2 * math.sqrt(2), 2 * math.sqrt(2)], [0.0, 1.0]],
+                [[1.0, 1.0], [1, 0]],
+                True,
+                [0.0, math.sqrt(2)],
+            ),
+        ],
+    )
     @pytest.mark.parametrize('device', ['cuda', 'cpu'])
     def test_l2_elementwise_similarity(self, a, b, normalize, expected, device):
         device = torch.device(device)
@@ -87,28 +94,33 @@ class TestL2SimilarityMeasure():
         assert_close(sim_fn(a, b, 'cross'), expected)
 
 
-class TestDotProductSImilarityMeasure():
+class TestDotProductSImilarityMeasure:
     """Tests for the negative dot product similarity measure."""
 
     def setup_method(self, method):
-            self.seed = 42
-            fix_seed(self.seed)
+        self.seed = 42
+        fix_seed(self.seed)
 
-    @pytest.mark.parametrize('a, b, normalize, expected', [
-        ([[1., 0.]], [[1., 1.]], False, [-1.]),
-        (
-            # The angles are 45, 180, and 90 degrees respesctively
-            [[1., 0.], [-math.sqrt(2), math.sqrt(2)], [1., 0.]],
-            [[1., 1.], [1., -1.], [0., -1.]],
-            True, [-math.sqrt(2)/2, 1, 0]
-        ),
-        (
-            # The angles are 30 and 90 degrees respectively
-            [[1., 0., 0.], [1, 0, math.sqrt(3)]],
-            [[0., 1., 0.], [math.sqrt(3), 0, 1]],
-            False, [0., -2 * math.sqrt(3)]
-        )
-    ])
+    @pytest.mark.parametrize(
+        'a, b, normalize, expected',
+        [
+            ([[1.0, 0.0]], [[1.0, 1.0]], False, [-1.0]),
+            (
+                # The angles are 45, 180, and 90 degrees respesctively
+                [[1.0, 0.0], [-math.sqrt(2), math.sqrt(2)], [1.0, 0.0]],
+                [[1.0, 1.0], [1.0, -1.0], [0.0, -1.0]],
+                True,
+                [-math.sqrt(2) / 2, 1, 0],
+            ),
+            (
+                # The angles are 30 and 90 degrees respectively
+                [[1.0, 0.0, 0.0], [1, 0, math.sqrt(3)]],
+                [[0.0, 1.0, 0.0], [math.sqrt(3), 0, 1]],
+                False,
+                [0.0, -2 * math.sqrt(3)],
+            ),
+        ],
+    )
     @pytest.mark.parametrize('device', ['cuda', 'cpu'])
     def test_dot_product_elementwise_similarity(self, a, b, normalize, expected, device):
         device = torch.device(device)
@@ -127,18 +139,26 @@ class TestDotProductSImilarityMeasure():
         assert_close(sim_fn(a, b, 'cross'), expected)
 
 
-class TestL1SimilarityMeasure():
+class TestL1SimilarityMeasure:
     """Tests for the L1 (Manhattan distance) similarity measure."""
 
     def setup_method(self, method):
         self.seed = 42
         fix_seed(self.seed)
 
-    @pytest.mark.parametrize('a, b, normalize, expected', [
-        ([[1., 0.]], [[0., 1.]], False, [2.]),
-        ([[3., 2., 5.], [2., 1., 7.]], [[3., 0., 5.], [1., -2., 5.]], False, [2., 6.]),
-        ([[2., 2.], [0., 3.]], [[1., 0.], [3., 0.]], True, [1., 2.]),
-    ])
+    @pytest.mark.parametrize(
+        'a, b, normalize, expected',
+        [
+            ([[1.0, 0.0]], [[0.0, 1.0]], False, [2.0]),
+            (
+                [[3.0, 2.0, 5.0], [2.0, 1.0, 7.0]],
+                [[3.0, 0.0, 5.0], [1.0, -2.0, 5.0]],
+                False,
+                [2.0, 6.0],
+            ),
+            ([[2.0, 2.0], [0.0, 3.0]], [[1.0, 0.0], [3.0, 0.0]], True, [1.0, 2.0]),
+        ],
+    )
     @pytest.mark.parametrize('device', ['cuda', 'cpu'])
     def test_l1_elementwise_similarity(self, a, b, normalize, expected, device):
         """Verifies elementwise L1 similarity against hand-crafted expected values."""
@@ -160,22 +180,31 @@ class TestL1SimilarityMeasure():
         assert_close(sim_fn(a, b, 'cross'), expected)
 
 
-class TestL2SquaredSimilarityMeasure():
+class TestL2SquaredSimilarityMeasure:
     """Tests for the squared Euclidean distance similarity measure."""
 
     def setup_method(self, method):
         self.seed = 42
         fix_seed(self.seed)
 
-    @pytest.mark.parametrize('a, b, normalize, expected', [
-        ([[1., 0.]], [[0., 1.]], False, [2.]),
-        ([[3., 2., 5.], [2., 1., 7.]], [[3., 0., 5.], [1., -2., 5.]], False, [4., 14.]),
-        (
-            [[2*math.sqrt(2), 2*math.sqrt(2)], [0., 1.]],
-            [[1., 1.], [1., 0.]], True,
-            [0., 2.]
-        ),
-    ])
+    @pytest.mark.parametrize(
+        'a, b, normalize, expected',
+        [
+            ([[1.0, 0.0]], [[0.0, 1.0]], False, [2.0]),
+            (
+                [[3.0, 2.0, 5.0], [2.0, 1.0, 7.0]],
+                [[3.0, 0.0, 5.0], [1.0, -2.0, 5.0]],
+                False,
+                [4.0, 14.0],
+            ),
+            (
+                [[2 * math.sqrt(2), 2 * math.sqrt(2)], [0.0, 1.0]],
+                [[1.0, 1.0], [1.0, 0.0]],
+                True,
+                [0.0, 2.0],
+            ),
+        ],
+    )
     @pytest.mark.parametrize('device', ['cuda', 'cpu'])
     def test_l2_squared_elementwise_similarity(self, a, b, normalize, expected, device):
         """Verifies elementwise squared L2 similarity against hand-crafted expected values."""

@@ -27,3 +27,17 @@ If you wish to override some of the variabkes from the config, then run it with 
 ```bash
 uv run python runner.py --config_file configs/train/maze-simple-vibe/vibe-train.gin --gin_bindings 'TrainJob.seed=1'
 ```
+
+## Linting
+Linting in this project is configured using ruff. To trigger checks, run:
+```bash
+uv run ruff check
+```
+If you wish to only trigger them in a specific directory (the checks are the most strict in ```src/```), run:
+```bash
+uv run ruff check src/
+```
+For formatting changes run:
+```bash
+uv run ruff format
+```
