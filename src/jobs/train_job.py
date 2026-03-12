@@ -6,6 +6,7 @@ import gin
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm import tqdm
 
 from src.contrastivelib.datasets import AbstractContrastiveDataset, SimplestContrastiveDataset
 from src.contrastivelib.metrics.losses import ContrastiveLoss
@@ -14,7 +15,7 @@ from src.contrastivelib.networks import BroNet
 from src.contrastivelib.utils import fix_seed
 from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
 from src.jobs import AbstractJob
-from src.jobs.utils.logging import AbstractLogger, MultipleLoggers, StdOutLogger, WandbLogger
+from src.jobs.utils.logging import AbstractLogger, StdOutLogger, WandbLogger
 
 
 @gin.configurable
@@ -25,7 +26,8 @@ class TrainJob(AbstractJob):
         metric_name: str,
         normalize: bool,
         seed: int,
-        train_dataset_path: str,
+        trainset_path: str,
+        validset_path: str,
         spec_mgr_class: Type[SpecialStateManager],
         base_model_class: Type[nn.Module],
         logger_class: Type[AbstractLogger],
@@ -48,37 +50,39 @@ class TrainJob(AbstractJob):
         self.loss_fn = ContrastiveLoss(embed_dim=embed_dim, sim_fn=sim_fn, device=self.device)
         self.optimizer = optim.AdamW(self.model.parameters(), lr=0.0001)
 
-        self.train_dataset = dataset_class(
-            file_sets_path=train_dataset_path, device=self.device, spec_mgr=spec_mgr
+        self.trainset = dataset_class(
+            file_sets_path=trainset_path, device=self.device, spec_mgr=spec_mgr
+        )
+        self.validset = dataset_class(
+            file_sets_path=validset_path, device=self.device, spec_mgr=spec_mgr
         )
         self.epochs = (
             epochs
             if (epochs is not None)
-            else math.ceil(update_steps / self.train_dataset.get_batches_per_epoch())
+            else math.ceil(update_steps / self.trainset.get_batches_per_epoch())
         )
 
-        self.logger = logger_class(
-            gin_config
-            if gin_config is not None
-            else (
-                {
-                    'TrainJob.embed_dim': embed_dim,
-                    'TrainJob.metric_name': metric_name,
-                    'TrainJob.normalize': normalize,
-                    'TrainJob.seed': seed,
-                    'TrainJob.train_dataset': train_dataset_path,
-                    'TrainJob.epochs': self.epochs,
-                }
-            )
-        )
+        self.logger = logger_class(epochs=self.epochs, run_params=gin_config)
+
+    @torch.no_grad()
+    def measure_valid_loss(self) -> float:
+        """Compute the validation loss."""
+        valid_loss = torch.tensor([0.0], device=self.device)
+
+        for states, extras in self.validset:
+            states_repr = states.apply(self.model)
+            loss = self.loss_fn(**states_repr, **extras)
+            valid_loss += loss
+
+        return valid_loss.cpu().item() / self.validset.get_batches_per_epoch()
 
     def execute(self) -> None:
         self.model.train()
 
-        for epoch in range(self.epochs):
+        for epoch in tqdm(range(self.epochs)):
             train_loss = torch.tensor([0.0], device=self.device)
 
-            for states, extras in self.train_dataset:
+            for states, extras in self.trainset:
                 self.optimizer.zero_grad()
 
                 states_repr = states.apply(self.model)
@@ -90,12 +94,11 @@ class TrainJob(AbstractJob):
                 with torch.no_grad():
                     train_loss += loss
 
-            self.logger.log_metrics(
-                epoch,
-                {
-                    'train_loss': train_loss.cpu().item()
-                    / (self.train_dataset.get_batches_per_epoch())
-                },
-            )
+            if self.logger.is_log_epoch(epoch):
+                avg_train_loss = train_loss.cpu().item() / self.trainset.get_batches_per_epoch()
+                avg_valid_loss = self.measure_valid_loss()
+                self.logger.log_metrics(
+                    epoch, {'train_loss': avg_train_loss, 'valid_loss': avg_valid_loss}
+                )
 
         self.logger.finish_run()

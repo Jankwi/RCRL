@@ -18,7 +18,7 @@ class BroBlock(nn.Module):
             nn.Dropout(dropout),
         )
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x + self.layers(x)
 
 
@@ -27,7 +27,11 @@ class BroNet(nn.Module):
     """BRO nn.Module based on the BRO paper (https://arxiv.org/pdf/2405.16158)"""
 
     def __init__(
-        self, input_dim=400, embed_dim=32, normalize_output: bool = True, dropout: float = 0.1
+        self,
+        input_dim: int = 400,
+        embed_dim: int = 32,
+        normalize_output: bool = True,
+        dropout: float = 0.1,
     ) -> None:
         super().__init__()
         self.layers = nn.Sequential(
@@ -42,7 +46,7 @@ class BroNet(nn.Module):
         self.normalize_output = normalize_output
         self.repr_dim = embed_dim
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layers(x.to(torch.float))
 
         if self.normalize_output:

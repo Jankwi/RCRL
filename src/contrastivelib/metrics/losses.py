@@ -14,5 +14,5 @@ class ContrastiveLoss:
         loss = -torch.log(exp_sims.diagonal() / exp_sims.sum(dim=1))
         return loss.mean()
 
-    def __call__(self, state: torch.Tensor, goal: torch.Tensor, **kwargs) -> torch.Tensor:
+    def __call__(self, state: torch.Tensor, goal: torch.Tensor) -> torch.Tensor:
         return (self.info_nce(state, goal) + self.info_nce(goal, state)) / 2

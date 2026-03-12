@@ -13,6 +13,7 @@ dependencies = [
     "joblib>=1.0.0",
     "numpy",
     "tensordict",
+    "tqdm",
     "wandb>=0.15.0",
     "torch==2.9.1",
 ]
@@ -79,13 +80,13 @@ target-version = "py310"
 indent-width = 4
 
 [tool.ruff.lint]
-# E: pycodestyle, F: Pyflakes, I: isort, W: warnings, ANN2: return type annotations
-select = ["E", "F", "I", "W", "ANN2"]
+# E: pycodestyle, F: Pyflakes, I: isort, W: warnings, ANN: type annotations
+select = ["E", "F", "I", "W", "ANN"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ANN2"]
-"local_experiments/**" = ["ANN2"]
-"runner.py" = ["ANN2"]
+"tests/**" = ["ANN"]
+"local_experiments/**" = ["ANN"]
+"runner.py" = ["ANN"]
 
 [tool.ruff.format]
 quote-style = "single"
