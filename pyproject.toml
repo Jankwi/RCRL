@@ -40,6 +40,7 @@ packages = ["src/contrastivelib"]
 # --- Pytest Configuration ---
 [tool.pytest.ini_options]
 pythonpath = ["."]
+addopts = "--import-mode=importlib"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]

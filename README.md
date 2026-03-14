@@ -41,3 +41,9 @@ For formatting changes run:
 ```bash
 uv run ruff format
 ```
+
+## Testing
+If you wish to execute all tests in a given directory run:
+```
+uv run python3 -m pytest tests/path/to/testing/directory
+```

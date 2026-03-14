@@ -69,14 +69,24 @@ class WandbLogger(AbstractLogger):
 class MultipleLoggers(AbstractLogger):
     """Logger class, comprising of multiple sub-loggers"""
 
-    def __init__(self, epochs: int, log_freq: int, run_params: dict,
-              stdout: bool = False, wandb: bool = False) -> None:
+    def __init__(
+        self,
+        epochs: int,
+        log_freq: int,
+        run_params: dict,
+        stdout: bool = False,
+        wandb: bool = False,
+    ) -> None:
         super().__init__(epochs=epochs, log_freq=log_freq)
         self.loggers = []
         if stdout:
-            self.loggers.append(StdOutLogger(epochs=epochs, log_freq=log_freq, run_params=run_params))
+            self.loggers.append(
+                StdOutLogger(epochs=epochs, log_freq=log_freq, run_params=run_params)
+            )
         if wandb:
-            self.loggers.append(WandbLogger(epochs=epochs, log_freq=log_freq, run_params=run_params))
+            self.loggers.append(
+                WandbLogger(epochs=epochs, log_freq=log_freq, run_params=run_params)
+            )
 
     def log_metrics(self, epoch_no: int, metrics_dict: Dict[str, float]) -> None:
         for logger in self.loggers:
