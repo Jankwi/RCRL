@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch.testing import assert_close
 
-from src.envs.maze.utils import get_pos_indices
+from src.envs.maze.utils import generate_border_positions, get_pos_indices
 
 
 class TestGetPosIndices:
@@ -41,3 +41,51 @@ class TestGetPosIndices:
         expected = torch.tensor(agent_positions, device=device)
         result = get_pos_indices(states, grid_dim)
         assert_close(result, expected)
+
+    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
+    def test_generate_border_positions(self, device):
+        """Tests the generate_border_positions method on sample board states"""
+        if device == 'cuda' and not torch.cuda.is_available():
+            pytest.skip('CUDA not available')
+
+        expected = torch.tensor(
+            [
+                [
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [1, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+            ],
+            device=device,
+        ).to(torch.bool)
+        assert_close(generate_border_positions(border=3, grid_dim=5, device=device), expected)

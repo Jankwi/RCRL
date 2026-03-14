@@ -1,4 +1,6 @@
 .agents/
+.claude/
+CLAUDE.md
 .pytest_cache/
 .ruff_cache/
 .venv/

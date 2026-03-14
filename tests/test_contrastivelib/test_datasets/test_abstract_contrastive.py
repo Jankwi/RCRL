@@ -141,6 +141,39 @@ class TestAbstractContrastiveFileLoading:
                 assert os.path.exists(path)
 
     @pytest.mark.parametrize(
+        'file_path, k', [('traj_len', 1), ('traj_len_abs', 1), ('traj_len_abs', 2)]
+    )
+    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
+    @pytest.mark.parametrize('chunk_size', [1, 2])
+    def test_get_random_starting_positions(self, data_dirs, file_path, k, device, chunk_size):
+        """
+        Tests that get_random_starting_positions returns starting states of k random trajectories
+        from the same file.
+        """
+        if device == 'cuda' and not torch.cuda.is_available():
+            pytest.skip('CUDA not available')
+
+        fix_seed(self.seed)
+        dataset = _PassthroughDataset(
+            file_sets_path=data_dirs[file_path],
+            tensor_names=[],
+            device=device,
+            chunk_size=chunk_size,
+        )
+        starting = dataset.get_random_starting_positions(k=k)
+
+        all_file_starts = [
+            torch.from_numpy(joblib.load(file_set['trajectories']))[:, 0].to(device)
+            for file_set in dataset.file_sets
+        ]
+
+        assert starting.shape == (k, *all_file_starts[0].shape[1:])
+        assert any(
+            all(any(torch.equal(s, fs) for fs in file_starts) for s in starting)
+            for file_starts in all_file_starts
+        )
+
+    @pytest.mark.parametrize(
         'file_path, tensor_names',
         [('traj_len', ['lengths']), ('traj_len_abs', ['lengths', 'abstract'])],
     )

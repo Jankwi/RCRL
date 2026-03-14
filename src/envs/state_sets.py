@@ -24,13 +24,7 @@ class SlowVectorizedStateSet(AbstractVectorizedStateSet):
 
     def _idx_to_list(self, idx: torch.Tensor) -> List[Tuple[int, int]]:
         """Returns pairs of (set_index, row_index_in_states_or_candidates)."""
-        set_indices = (
-            torch.nonzero(idx.detach(), as_tuple=False)
-            .flatten()
-            .to(device='cpu', dtype=torch.long)
-            .tolist()
-        )
-
+        set_indices = idx.detach().to(device='cpu', dtype=torch.long).tolist()
         return [(set_i, row_i) for row_i, set_i in enumerate(set_indices)]
 
     @staticmethod

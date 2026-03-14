@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 import torch
 
@@ -38,17 +39,19 @@ class VectorizedEnvironment(ABC):
         return SlowVectorizedStateSet(n_sets=n_sets)
 
 
-# class ValueEstimator(ABC):
-#     """Layer of abstraction for estimating the value of positions"""
+class ValueEstimator(ABC):
+    """Layer of abstraction for estimating the value of positions"""
+    def __init__(self, device: torch.device) -> None:
+        self.device = device
 
-#     @abstractmethod
-#     def get_solved_distance(self, states: torch.Tensor, goals: torch.Tensor):
-#         pass
+    @abstractmethod
+    def get_solved_distance(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
+        pass
 
-#     def get_inf(self, shape):
-#         """Returns a tensor of +inf with the given shape, used to initialise best_val."""
-#         return torch.full(shape, float('inf'), device=self.device)
+    def get_inf(self, shape: Tuple[int, ...]) -> torch.Tensor:
+        """Returns a tensor of +inf with the given shape, used to initialise best_val."""
+        return torch.full(shape, float('inf'), device=self.device)
 
-#     def which_inf(self, val: torch.Tensor):
-#         """Returns a boolean mask of entries that are still +inf (no valid move found)."""
-#         return torch.isinf(val)
+    def which_inf(self, val: torch.Tensor) -> torch.Tensor:
+        """Returns a boolean mask of entries that are still +inf (no valid move found)."""
+        return torch.isinf(val)

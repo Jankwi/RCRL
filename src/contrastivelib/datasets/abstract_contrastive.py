@@ -47,6 +47,14 @@ class AbstractContrastiveDataset(IterableDataset):
                     file_sets[-1][suffix] = f'{file_sets_path}/{extra_filename}'
         return file_sets
 
+    def get_random_starting_positions(self, k: int) -> torch.Tensor:
+        """Samples starting positions from random k trajectories from a random file"""
+        traj_file = random.choice(self.file_sets)[self.master_tn]
+        trajectories = torch.from_numpy(joblib.load(traj_file))
+        assert len(trajectories) >= k
+        indices = torch.randperm(len(trajectories))[:k]
+        return trajectories[indices, 0].to(self.device)
+
     def get_batches_per_epoch(self) -> int:
         """Returns the number of batches per epoch"""
         if not hasattr(self, 'batches_per_epoch'):
