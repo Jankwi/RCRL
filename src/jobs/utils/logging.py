@@ -16,7 +16,11 @@ class AbstractLogger:
         return (epoch == 0) or (epoch % self.log_freq == 0) or (epoch == self.final_epoch)
 
     @abstractmethod
-    def log_metrics(self, epoch_no: int, metrics_dict: Dict[str, float]) -> None:
+    def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        pass
+
+    @abstractmethod
+    def log_metrics(self, epoch: int, metrics_dict: Dict[str, float]) -> None:
         pass
 
     @abstractmethod
@@ -35,8 +39,13 @@ class StdOutLogger(AbstractLogger):
         for name, value in run_params.items():
             print(f'  {name}: {value}', file=self.file)
 
-    def log_metrics(self, epoch_no: int, metrics_dict: Dict[str, float]) -> None:
-        print(f'-----Metrics for epoch {epoch_no}-----', file=self.file)
+    def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        print(f'-----State dicts for {epoch}-----', file=self.file)
+        for name, value in paths_dict.items():
+            print(f'{name}: {value}', file=self.file)
+
+    def log_metrics(self, epoch: int, metrics_dict: Dict[str, float]) -> None:
+        print(f'-----Metrics for epoch {epoch}-----', file=self.file)
         for name, value in metrics_dict.items():
             print(f'  {name}: {value}', file=self.file)
 
@@ -58,8 +67,23 @@ class WandbLogger(AbstractLogger):
             config=run_params,
         )
 
-    def log_metrics(self, epoch_no: int, metrics_dict: Dict[str, float]) -> None:
-        self.wandb_run.log(metrics_dict)
+    def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        """Wraps all state dicts in a wandb artifact, and sends it"""
+        artifact = wandb.Artifact(
+            name=f'checkpoint-{epoch}-{self.wandb_run.name}',
+            type='model',
+            metadata={
+                'epoch': epoch,
+                'wandb_name': self.wandb_run.name,
+                'wandb_id': self.wandb_run.id,
+            },
+        )
+        for name, path in paths_dict.items():
+            artifact.add_file(local_path=path, name=name)
+        self.wandb_run.log_artifact(artifact)
+
+    def log_metrics(self, epoch: int, metrics_dict: Dict[str, float]) -> None:
+        self.wandb_run.log(metrics_dict | {'epoch': epoch})
 
     def finish_run(self) -> None:
         self.wandb_run.finish()
@@ -88,9 +112,13 @@ class MultipleLoggers(AbstractLogger):
                 WandbLogger(epochs=epochs, log_freq=log_freq, run_params=run_params)
             )
 
-    def log_metrics(self, epoch_no: int, metrics_dict: Dict[str, float]) -> None:
+    def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
         for logger in self.loggers:
-            logger.log_metrics(epoch_no, metrics_dict)
+            logger.log_state_dicts(epoch, paths_dict)
+
+    def log_metrics(self, epoch: int, metrics_dict: Dict[str, float]) -> None:
+        for logger in self.loggers:
+            logger.log_metrics(epoch, metrics_dict)
 
     def finish_run(self) -> None:
         for logger in self.loggers:

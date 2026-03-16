@@ -1,9 +1,9 @@
 import gin
 import torch
 
-from contrastivelib.utils.special import SpecialStateManager
-from envs.maze import AbstractVectorizedMaze
-from envs.maze.utils import generate_border_positions
+from src.contrastivelib.utils.special import SpecialStateManager
+from src.envs.maze import AbstractVectorizedMaze
+from src.envs.maze.utils import generate_border_positions
 
 
 @gin.configurable

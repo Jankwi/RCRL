@@ -4,17 +4,18 @@ import gin
 import torch
 from tensordict import TensorDict
 
-from src.contrastivelib.datasets import AbstractContrastiveDataset
+from src.contrastivelib.datasets.abstract_contrastive import AbstractContrastiveDataset
 from src.contrastivelib.utils.distributions import DistributionSampler
 from src.contrastivelib.utils.special import SpecialStateManager
 
 
 @gin.configurable
-class SimplestContrastiveDataset(AbstractContrastiveDataset):
+class ContrastiveDatasetSpecialPadding(AbstractContrastiveDataset):
     """
-    Simplest possible contrastive datasets for dealing with special states.
     Uses CRTR, but instead of rescaling the geometric distribution,
     maps the out of range indices to the special states.
+
+    In other words, pads each trajectory with an infinite number of specialn states.
     """
 
     def __init__(
@@ -44,7 +45,7 @@ class SimplestContrastiveDataset(AbstractContrastiveDataset):
         lengths = torch.repeat_interleave(lengths, self.repetition_factor, dim=0)
         batch_idx = torch.arange(len(trajectories), device=self.device)
 
-        spec_states = self.spec_mgr.create_many(len(trajectories))
+        spec_states = self.spec_mgr.create_many(len(trajectories)).to(trajectories.dtype)
         trajectories = torch.cat((trajectories, spec_states.unsqueeze(1)), dim=1)
         trajectories[batch_idx, lengths] = spec_states
 

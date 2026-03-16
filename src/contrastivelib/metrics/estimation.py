@@ -16,6 +16,7 @@ class SingleGoalValueEstimator(ValueEstimator):
     def get_solved_distance(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
         return self.sim_fn(self.model(states), self.model(goals))
 
+
 @gin.configurable
 class ManyGoalsValueEstimator(ValueEstimator):
     def __init__(self, model: nn.Module, sim_fn: SimilarityMeasure, device: torch.device) -> None:
@@ -26,7 +27,10 @@ class ManyGoalsValueEstimator(ValueEstimator):
     def get_solved_distance(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
         # pass to model in (n*k) x state_shape
         # take the min i=1, ..., k for distance to each goal
-        n, k = goals.shape[0], goals.shape[1]
+        n = states.shape[0]
+        if goals.dim() == states.dim():
+            goals = goals.unsqueeze(1)
+        k = goals.shape[1]
         goals_flat = goals.reshape(n * k, *goals.shape[2:])
         goals_emb = self.model(goals_flat)
         states_emb = self.model(states)

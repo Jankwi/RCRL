@@ -1,5 +1,6 @@
 # ruff: noqa: F401
 import math
+import os
 from typing import Dict, Type
 
 import gin
@@ -11,9 +12,10 @@ from tqdm import tqdm
 from src.contrastivelib.datasets import (
     AbstractContrastiveDataset,
     ContrastiveDatasetNoSpecial,
-    SimplestContrastiveDataset,
+    ContrastiveDatasetSpecialPadding,
+    ContrastiveDatasetWeightedSpecial,
 )
-from src.contrastivelib.metrics.losses import ContrastiveLoss
+from src.contrastivelib.metrics.losses import AbstractContrastiveLoss
 from src.contrastivelib.metrics.sims import get_similarity_measure
 from src.contrastivelib.networks import BroNet
 from src.contrastivelib.utils import fix_seed
@@ -40,6 +42,7 @@ class TrainJob(AbstractJob):
         trainset_path: str,
         validset_path: str,
         base_model_class: Type[nn.Module],
+        loss_class: Type[AbstractContrastiveLoss],
         logger_class: Type[AbstractLogger],
         dataset_class: Type[AbstractContrastiveDataset],
         solver_class: Type[Solver],
@@ -49,12 +52,16 @@ class TrainJob(AbstractJob):
         epochs: int = None,
         lr: float = 0.001,
         update_steps: int = None,
+        checkpoint_dir: str = 'checkpoints/',
     ) -> None:
         if not ((epochs is None) ^ (update_steps is None)):
             raise ValueError(f'Exactly one of {epochs=} and {update_steps=} has to be set')
 
         fix_seed(seed)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        self.checkpoint_dir = checkpoint_dir
+
         sim_fn = get_similarity_measure(measure=metric_name, normalize=normalize)
         spec_mgr = spec_mgr_class(device=self.device) if spec_mgr_class is not None else None
         spec_mgr_param = {'spec_mgr': spec_mgr} if spec_mgr is not None else {}
@@ -66,8 +73,8 @@ class TrainJob(AbstractJob):
             else base_model
         ).to(self.device)
 
-        self.loss_fn = ContrastiveLoss(embed_dim=embed_dim, sim_fn=sim_fn, device=self.device)
-        self.optimizer = optim.AdamW(self.model.parameters(), lr=lr)
+        self.loss_fn = loss_class(embed_dim=embed_dim, sim_fn=sim_fn, device=self.device)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
         self.trainset = dataset_class(
             file_sets_path=trainset_path, device=self.device, **spec_mgr_param
@@ -101,12 +108,37 @@ class TrainJob(AbstractJob):
 
         return valid_loss.cpu().item() / self.validset.get_batches_per_epoch()
 
+    def save_checkpoint(self, epoch: int) -> None:
+        """Saves model & optimizer states locally, and then passes them to the logger"""
+        epoch_path = f'{self.checkpoint_dir}/{epoch}/'
+        os.makedirs(epoch_path, exist_ok=True)
+        model_path = f'{epoch_path}/model.pt'
+        optimizer_path = f'{epoch_path}/optimizer.pt'
+        torch.save(self.model.state_dict(), model_path)
+        torch.save(self.optimizer.state_dict(), optimizer_path)
+        self.logger.log_state_dicts(epoch, {'model': model_path, 'optimizer': optimizer_path})
+
+    @torch.no_grad()
+    def log_everything(self, epoch: int, avg_train_loss: float) -> None:
+        """Calculates metrics, and then logs metrics & checpoints"""
+        self.model.eval()
+        self.logger.log_metrics(
+            epoch,
+            (
+                {'train_loss': avg_train_loss}
+                | {'valid_loss': self.measure_valid_loss()}
+                | self.solver.solve()
+            ),
+        )
+        self.save_checkpoint(epoch)
+        self.model.train()
+
     def execute(self) -> None:
         """Trains the model, and logs metrics"""
         self.model.train()
 
         for epoch in tqdm(range(self.epochs)):
-            train_loss = torch.tensor([0.0], device=self.device)
+            train_loss_sum = torch.tensor([0.0], device=self.device)
 
             for states, extras in self.trainset:
                 self.optimizer.zero_grad()
@@ -118,18 +150,11 @@ class TrainJob(AbstractJob):
                 self.optimizer.step()
 
                 with torch.no_grad():
-                    train_loss += loss
+                    train_loss_sum += loss
 
             if self.logger.is_log_epoch(epoch):
-                with torch.no_grad():
-                    avg_train_loss = train_loss.cpu().item() / self.trainset.get_batches_per_epoch()
-                    avg_valid_loss = self.measure_valid_loss()
-                    self.logger.log_metrics(
-                        epoch,
-                        (
-                            {'train_loss': avg_train_loss, 'valid_loss': avg_valid_loss}
-                            | self.solver.solve()
-                        ),
-                    )
+                self.log_everything(
+                    epoch, train_loss_sum.cpu().item() / self.trainset.get_batches_per_epoch()
+                )
 
         self.logger.finish_run()

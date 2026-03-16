@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.optim import Adam
 from torch.testing import assert_close
 
-from contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
+from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
 
 
 class TestSpecialStateManager:

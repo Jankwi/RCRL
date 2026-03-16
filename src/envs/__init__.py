@@ -41,6 +41,7 @@ class VectorizedEnvironment(ABC):
 
 class ValueEstimator(ABC):
     """Layer of abstraction for estimating the value of positions"""
+
     def __init__(self, device: torch.device) -> None:
         self.device = device
 

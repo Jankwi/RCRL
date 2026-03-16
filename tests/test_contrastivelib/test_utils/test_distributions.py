@@ -19,6 +19,9 @@ class TestDistributionSampler:
         self.uniform_atol = 0.05
         self.geometric_atol = 0.025
 
+    def _get_geom_probs(self, n: int, gamma: float):
+        return [(1 - gamma) * (gamma ** (k - 1)) for k in range(1, n + 1)]
+
     @pytest.mark.parametrize('gamma', [0.5, 0.9])
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     @pytest.mark.parametrize('inclusive_high_list', [[3, 2], [1, 1]])
@@ -35,7 +38,7 @@ class TestDistributionSampler:
         samples = sampler.clamped_geometric(batch)
 
         for idx, n in enumerate(inclusive_high_list):
-            expected_list = [(1 - gamma) * (gamma ** (k - 1)) for k in range(1, n)]
+            expected_list = self._get_geom_probs(n - 1, gamma)
             expected_list.append(1 - sum(expected_list) if len(expected_list) > 0 else 1)
             expected = torch.tensor(expected_list, device=device).float()
 
@@ -64,7 +67,7 @@ class TestDistributionSampler:
         for idx, n in enumerate(inclusive_high_list):
             expected = _normalize(
                 torch.tensor(
-                    [gamma**k for k in range(1, n + 1)],
+                    self._get_geom_probs(n, gamma),
                     device=device,
                 )
             )
@@ -141,7 +144,7 @@ class TestDistributionSampler:
         for idx, n in enumerate(inclusive_high_list):
             expected = _normalize(
                 torch.tensor(
-                    [gamma**k for k in range(1, n + 1)],
+                    self._get_geom_probs(n, gamma),
                     device=device,
                 )
             )
@@ -150,3 +153,35 @@ class TestDistributionSampler:
             for j in range(1, n + 1):
                 freq[j - 1] = (col == j).float().mean()
             assert_close(freq, expected, atol=self.geometric_atol, rtol=0.0)
+
+    @pytest.mark.parametrize('gamma', [0.5, 0.9])
+    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
+    @pytest.mark.parametrize('inclusive_low_list', [[1, 2, 3, 4], [1, 3, 5]])
+    def test_geometric_over_low(self, gamma, device, inclusive_low_list):
+        """Tests DistributionSampler's geometric_over_low method's probability formula"""
+        if device == 'cuda' and not torch.cuda.is_available():
+            pytest.skip('CUDA not available')
+
+        sampler = DistributionSampler(gamma=gamma, device=device)
+
+        inclusive_low = torch.tensor(inclusive_low_list, device=device)
+        probs = sampler.geometric_over_low(inclusive_low)
+
+        # P(X >= k) = 1 - (P(X = k-1) + P(X = k-2) + ... + P(X = 1))
+        expected = torch.tensor(
+            [1 - sum(self._get_geom_probs(k-1, gamma)) for k in inclusive_low_list],
+            device=device,
+        ).float()
+        assert_close(probs, expected, atol=1e-5, rtol=1e-5)
+
+        # Check that differences between consecutive P(X >= k) values equal the PMF:
+        # P(X >= k) - P(X >= k+1) = P(X = k) = (1 - gamma) * gamma^(k-1)
+        max_k = max(inclusive_low_list)
+        consecutive_low = torch.arange(1, max_k + 2, device=device)
+        consecutive_probs = sampler.geometric_over_low(consecutive_low)
+        diffs = consecutive_probs[:-1] - consecutive_probs[1:]
+        expected_pmf = torch.tensor(
+            [(1 - gamma) * gamma ** (k - 1) for k in range(1, max_k + 1)],
+            device=device,
+        ).float()
+        assert_close(diffs, expected_pmf, atol=1e-5, rtol=1e-5)

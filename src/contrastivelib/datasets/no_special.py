@@ -4,7 +4,7 @@ import gin
 import torch
 from tensordict import TensorDict
 
-from src.contrastivelib.datasets import AbstractContrastiveDataset
+from src.contrastivelib.datasets.abstract_contrastive import AbstractContrastiveDataset
 from src.contrastivelib.utils.distributions import DistributionSampler
 
 
