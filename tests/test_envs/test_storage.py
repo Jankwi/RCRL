@@ -3,12 +3,17 @@ import torch
 from torch.testing import assert_close
 
 from src.contrastivelib.utils import fix_seed
-from src.envs.storage import StateStorage
+from src.envs.storage import DeepStateStorage, ShallowStateStorage
 from tests.test_envs.mock import MockVectorizedEnvironment
 
 
-class TestStateStorage:
-    """Tests for StateStorage initialization and active state tracking."""
+@pytest.fixture(params=[ShallowStateStorage, DeepStateStorage])
+def storage_class(request):
+    return request.param
+
+
+class TestStateStoragesBasic:
+    """Tests if universal AbstractStateStorage properties work on both subclasses"""
 
     def setup_method(self, method):
         self.max_idx = 20
@@ -16,7 +21,7 @@ class TestStateStorage:
         self.seed = 42
 
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_all_active_after_init(self, device):
+    def test_all_active_after_init(self, storage_class, device):
         """Verifies that all games are active immediately after initialization."""
         if device == 'cuda' and not torch.cuda.is_available():
             pytest.skip('CUDA not available')
@@ -30,14 +35,13 @@ class TestStateStorage:
         starting_positions = torch.cat([goals, positions], dim=1)
 
         expected_active_idx = torch.arange(self.num_games, device=device)
-        storage = StateStorage(starting_positions=starting_positions, env=env, device=device)
+        storage = storage_class(starting_positions=starting_positions, env=env, device=device)
 
         assert_close(storage.active_idx, expected_active_idx)
-        assert len(storage) == self.num_games
 
     @pytest.mark.parametrize('solved_indices', [[], [0], [1, 3], [0, 1, 2, 3, 4]])
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_solved_at_init(self, device, solved_indices):
+    def test_solved_at_init(self, storage_class, device, solved_indices):
         """Verifies active count, active indices, and solved rate when some games start solved."""
         if device == 'cuda' and not torch.cuda.is_available():
             pytest.skip('CUDA not available')
@@ -55,17 +59,15 @@ class TestStateStorage:
 
         expected_active_idx = torch.tensor(unsolved_indices, dtype=torch.long, device=device)
         expected_solved_rate = len(solved_indices) / self.num_games
-        expected_active_len = self.num_games - len(solved_indices)
 
-        storage = StateStorage(starting_positions=starting_positions, env=env, device=device)
+        storage = storage_class(starting_positions=starting_positions, env=env, device=device)
         storage.active_states()
 
         assert_close(storage.active_idx, expected_active_idx)
-        assert len(storage) == expected_active_len
-        assert storage.get_solved_rate() == expected_solved_rate
+        assert storage._get_solved_rate()['solved_rate'] == expected_solved_rate
 
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_multiple_moves(self, device):
+    def test_multiple_moves(self, storage_class, device):
         """Verifies active tracking and solved rate across two rounds, with one illegal move."""
         if device == 'cuda' and not torch.cuda.is_available():
             pytest.skip('CUDA not available')
@@ -80,7 +82,7 @@ class TestStateStorage:
         starting_positions = torch.stack([goals, positions], dim=1)
 
         env = MockVectorizedEnvironment(max_idx=10, device=device)
-        storage = StateStorage(starting_positions=starting_positions, env=env, device=device)
+        storage = storage_class(starting_positions=starting_positions, env=env, device=device)
 
         # --- Round 1: all three active, move +2, game 0 solved next ---
         expected_active_before_r1 = torch.tensor([0, 1, 2], device=device)
@@ -97,8 +99,7 @@ class TestStateStorage:
         expected_active_after_r1 = torch.tensor([1, 2], device=device)
         active = storage.active_states()
         assert_close(storage.active_idx, expected_active_after_r1)
-        assert len(storage) == 2
-        assert storage.get_solved_rate() == 1 / num_games
+        assert storage._get_solved_rate()['solved_rate'] == 1 / num_games
 
         new_states = active.clone()
         new_states[:, 1] += 1  # game 1: pos→3; game 2: pos→3
@@ -109,5 +110,4 @@ class TestStateStorage:
         expected_active_final = torch.tensor([], dtype=torch.long, device=device)
         storage.active_states()
         assert_close(storage.active_idx, expected_active_final)
-        assert len(storage) == 0
-        assert storage.get_solved_rate() == 2 / num_games
+        assert storage._get_solved_rate()['solved_rate'] == 2 / num_games

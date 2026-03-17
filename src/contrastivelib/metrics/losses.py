@@ -1,8 +1,9 @@
-import torch
+from abc import ABC
 
 import gin
+import torch
+
 from src.contrastivelib.metrics.sims import SimilarityMeasure
-from abc import ABC, abstractmethod
 
 
 @gin.configurable
@@ -57,24 +58,24 @@ class WeightedSpecialContrastive(AbstractContrastiveLoss):
         return loss.mean()
 
 
-class FullyWeightedSpecialContrastive(AbstractContrastiveLoss):
-    """Factors everything with an appropriate weight"""
+# class FullyWeightedSpecialContrastive(AbstractContrastiveLoss):
+#     """Factors everything with an appropriate weight"""
 
-    def __init__(self, embed_dim: int, sim_fn: SimilarityMeasure, device: torch.device) -> None:
-        super().__init__(embed_dim=embed_dim, sim_fn=sim_fn, device=device)
+#     def __init__(self, embed_dim: int, sim_fn: SimilarityMeasure, device: torch.device) -> None:
+#         super().__init__(embed_dim=embed_dim, sim_fn=sim_fn, device=device)
 
-    def __call__(
-        self,
-        state: torch.Tensor,
-        goal: torch.Tensor,
-        spec_state: torch.Tensor,
-        spec_weight: torch.Tensor,
-    ) -> torch.Tensor:
-        exp_sims = self._get_exp_sim(state, goal, 'cross')
-        exp_special_sims = self._get_exp_sim(state, spec_state, 'elementwise')
+#     def __call__(
+#         self,
+#         state: torch.Tensor,
+#         goal: torch.Tensor,
+#         spec_state: torch.Tensor,
+#         spec_weight: torch.Tensor,
+#     ) -> torch.Tensor:
+#         exp_sims = self._get_exp_sim(state, goal, 'cross')
+#         exp_special_sims = self._get_exp_sim(state, spec_state, 'elementwise')
 
-        new_diag = exp_sims.diagonal() * (1 - spec_weight) + spec_weight * exp_special_sims
-        exp_sims_sum = exp_sims.sum(dim=1) - exp_sims.diagonal() + new_diag
+#         new_diag = exp_sims.diagonal() * (1 - spec_weight) + spec_weight * exp_special_sims
+#         exp_sims_sum = exp_sims.sum(dim=1) - exp_sims.diagonal() + new_diag
 
-        loss = -torch.log(new_diag / exp_sims_sum)
-        return loss.mean()
+#         loss = -torch.log(new_diag / exp_sims_sum)
+#         return loss.mean()

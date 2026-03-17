@@ -1,6 +1,9 @@
 from typing import Tuple
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
+from matplotlib.figure import Figure
 
 from src.envs import VectorizedEnvironment
 from src.envs.maze.state_sets import MazeVectorizedStateSet
@@ -46,3 +49,10 @@ class AbstractVectorizedMaze(VectorizedEnvironment):
 
     def get_state_sets(self, n_sets: int) -> MazeVectorizedStateSet:
         return MazeVectorizedStateSet(n_sets=n_sets, grid_dim=self.grid_dim, device=self.device)
+
+    def render_state(self, state: np.ndarray) -> Figure:
+        fig, ax = plt.subplots(figsize=(5, 5))
+        ax.imshow(state, cmap='viridis', vmin=-0.5, vmax=2.0)
+        ax.set_aspect('equal')
+        ax.axis('off')
+        return fig

@@ -16,6 +16,10 @@ class AbstractLogger:
         return (epoch == 0) or (epoch % self.log_freq == 0) or (epoch == self.final_epoch)
 
     @abstractmethod
+    def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        pass
+
+    @abstractmethod
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
         pass
 
@@ -38,6 +42,11 @@ class StdOutLogger(AbstractLogger):
         print('-----Starting stdout logging for run-----', file=self.file)
         for name, value in run_params.items():
             print(f'  {name}: {value}', file=self.file)
+
+    def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        print(f'-----Gifs for {epoch}-----', file=self.file)
+        for name, value in paths_dict.items():
+            print(f'{name}: {value}', file=self.file)
 
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
         print(f'-----State dicts for {epoch}-----', file=self.file)
@@ -66,6 +75,13 @@ class WandbLogger(AbstractLogger):
             project=os.environ.get('wandb_project'),
             config=run_params,
         )
+        self.log_later = dict()
+
+    def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        self.log_later = self.log_later | {
+            f'{name}-epoch-{epoch}': wandb.Video(path, format='gif')
+            for name, path in paths_dict.items()
+        }
 
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
         """Wraps all state dicts in a wandb artifact, and sends it"""
@@ -83,7 +99,8 @@ class WandbLogger(AbstractLogger):
         self.wandb_run.log_artifact(artifact)
 
     def log_metrics(self, epoch: int, metrics_dict: Dict[str, float]) -> None:
-        self.wandb_run.log(metrics_dict | {'epoch': epoch})
+        self.wandb_run.log(metrics_dict | {'epoch': epoch} | self.log_later)
+        self.log_later.clear()
 
     def finish_run(self) -> None:
         self.wandb_run.finish()
@@ -111,6 +128,10 @@ class MultipleLoggers(AbstractLogger):
             self.loggers.append(
                 WandbLogger(epochs=epochs, log_freq=log_freq, run_params=run_params)
             )
+
+    def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        for logger in self.loggers:
+            logger.log_gifs(epoch, paths_dict)
 
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
         for logger in self.loggers:

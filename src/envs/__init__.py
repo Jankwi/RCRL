@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Tuple
 
+import numpy as np
 import torch
+from matplotlib.figure import Figure
 
 from envs.state_sets import AbstractVectorizedStateSet, SlowVectorizedStateSet
 
@@ -37,6 +39,10 @@ class VectorizedEnvironment(ABC):
         If not overriden, the default is SlowVectorizedStateSet (works with all environments).
         """
         return SlowVectorizedStateSet(n_sets=n_sets)
+
+    @abstractmethod
+    def render_state(self, state: np.ndarray) -> Figure:
+        pass
 
 
 class ValueEstimator(ABC):

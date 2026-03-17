@@ -1,19 +1,26 @@
-from typing import Dict
+# ruff: noqa: F401
+from typing import Any, Dict, Type
 
+import gin
 import torch
 
 from src.envs import ValueEstimator, VectorizedEnvironment
-from src.envs.storage import StateStorage
+from src.envs.storage import AbstractStateStorage, ShallowStateStorage
 
 
+@gin.configurable
 def eval_no_search(
-    states: torch.Tensor, env: VectorizedEnvironment, ve: ValueEstimator
-) -> Dict[str, float]:
+    states: torch.Tensor,
+    env: VectorizedEnvironment,
+    ve: ValueEstimator,
+    storage_class: Type[AbstractStateStorage] = ShallowStateStorage,
+    max_len: Dict[str, int] = {},
+) -> Any:  # noqa: ANN401
     """Runs a greedy simulation for each state, guided by the value estimator."""
-    storage = StateStorage(states, env, states.device)
+    storage = storage_class(states, env, states.device, **max_len)
 
     states = storage.active_states()
-    while len(states) > 0:
+    while storage.continue_condition():
         best_next = states.clone()
         best_val = ve.get_inf((states.shape[0],))
 
@@ -27,4 +34,4 @@ def eval_no_search(
         storage.process_chosen_moves(best_next, ~ve.which_inf(best_val))
         states = storage.active_states()
 
-    return {'solved_rate': storage.get_solved_rate()}
+    return storage.get_result()

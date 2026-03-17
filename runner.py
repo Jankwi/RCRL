@@ -3,6 +3,7 @@ from typing import Dict, Type
 
 import gin
 
+from src.contrastivelib.utils import fix_seed
 from src.jobs import AbstractJob
 from src.jobs.train_job import *  # noqa: F403
 
@@ -18,7 +19,8 @@ def gin_config_to_dict(config_str: str) -> Dict[str, str]:
 
 
 @gin.configurable
-def run(job_class: Type[AbstractJob], gin_config: Dict[str, str]):
+def run(seed: int, job_class: Type[AbstractJob], gin_config: Dict[str, str]):
+    fix_seed(seed)
     job = job_class(gin_config=gin_config)
     job.execute()
 
