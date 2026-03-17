@@ -33,7 +33,7 @@ class SimilarityMeasure:
                 return self._measure(a=a, b=b)
             case 'cross':
                 return self._measure(
-                    torch.repeat_interleave(a.unsqueeze(1), a.shape[0], 1),
+                    torch.repeat_interleave(a.unsqueeze(1), b.shape[0], 1),
                     torch.repeat_interleave(b.unsqueeze(0), a.shape[0], 0),
                 )
             case _:

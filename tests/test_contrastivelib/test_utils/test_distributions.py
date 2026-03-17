@@ -169,7 +169,7 @@ class TestDistributionSampler:
 
         # P(X >= k) = 1 - (P(X = k-1) + P(X = k-2) + ... + P(X = 1))
         expected = torch.tensor(
-            [1 - sum(self._get_geom_probs(k-1, gamma)) for k in inclusive_low_list],
+            [1 - sum(self._get_geom_probs(k - 1, gamma)) for k in inclusive_low_list],
             device=device,
         ).float()
         assert_close(probs, expected, atol=1e-5, rtol=1e-5)

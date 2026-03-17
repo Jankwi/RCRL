@@ -27,13 +27,13 @@ class ManyGoalsValueEstimator(ValueEstimator):
     def get_solved_distance(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
         # pass to model in (n*k) x state_shape
         # take the min i=1, ..., k for distance to each goal
-        n = states.shape[0]
         if goals.dim() == states.dim():
             goals = goals.unsqueeze(1)
-        k = goals.shape[1]
+        n, k = goals.shape[0], goals.shape[1]
+
         goals_flat = goals.reshape(n * k, *goals.shape[2:])
         goals_emb = self.model(goals_flat)
         states_emb = self.model(states)
         states_emb_repeated = states_emb.unsqueeze(1).repeat(1, k, 1).reshape(n * k, -1)
-        sims = self.sim_fn(states_emb_repeated, goals_emb).reshape(n, k)
+        sims = self.sim_fn(states_emb_repeated, goals_emb, 'elementwise').reshape(n, k)
         return torch.min(sims, dim=1).values

@@ -27,6 +27,12 @@ def latent_dim(request):
     return request.param
 
 
+@pytest.fixture(params=[(1, 4), (3, 5), (5, 3), (4, 1)])
+def cross_dims(request):
+    """Provides tuples of a.shape[0], b.shape[0] for cross-similarity tests"""
+    return request.param
+
+
 @pytest.fixture(params=[True, False])
 def normalize(request):
     """Provides normalization flag for cross-similarity tests."""
@@ -34,16 +40,17 @@ def normalize(request):
 
 
 @pytest.fixture
-def cross_sim_data(device, latent_dim, normalize):
+def cross_sim_data(device, cross_dims, latent_dim, normalize):
     """Provides deterministic tensors and a build_expected callable for cross-similarity tests."""
     torch.manual_seed(42)
-    a = torch.rand((latent_dim, latent_dim), device=device)
-    b = torch.rand((latent_dim, latent_dim), device=device)
+    len_a, len_b = cross_dims
+    a = torch.rand((len_a, latent_dim), device=device)
+    b = torch.rand((len_b, latent_dim), device=device)
 
     def build_expected(sim_fn):
-        expected = torch.zeros((latent_dim, latent_dim), device=device)
-        for i in range(latent_dim):
-            for j in range(latent_dim):
+        expected = torch.zeros((len_a, len_b), device=device)
+        for i in range(len_a):
+            for j in range(len_b):
                 expected[i][j] = sim_fn(a[i].unsqueeze(0), b[j].unsqueeze(0), 'elementwise').item()
         return expected
 
