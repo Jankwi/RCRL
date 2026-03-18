@@ -45,7 +45,7 @@ class AbstractContrastiveDataset(IterableDataset):
                     extra_filename = f'{prefix}_{suffix}.pkl'
                     assert extra_filename in all_files
                     file_sets[-1][suffix] = f'{file_sets_path}/{extra_filename}'
-        return file_sets
+        return sorted(file_sets, key=lambda fs: fs[master_tn])
 
     def get_random_starting_positions(self, k: int) -> torch.Tensor:
         """Samples starting positions from random k trajectories from a random file"""

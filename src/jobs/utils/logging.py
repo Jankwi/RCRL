@@ -1,6 +1,7 @@
+import functools
 import os
 from abc import abstractmethod
-from typing import Dict
+from typing import Callable, Dict
 
 import gin
 
@@ -8,12 +9,26 @@ import wandb
 
 
 class AbstractLogger:
-    def __init__(self, epochs: int, log_freq: int, run_params: dict = None) -> None:
+    def __init__(
+        self,
+        epochs: int,
+        default_log_freq: int,
+        run_params: dict = None,
+        advanced_frequencies: Dict[str, int] = {},
+    ) -> None:
         self.final_epoch = epochs - 1
-        self.log_freq = log_freq
+        self.default_log_freq = default_log_freq
+        self.advanced_frequencies = advanced_frequencies
+
+    def _check_epoch(self, epoch: int, freq: int) -> bool:
+        return (epoch == 0) or (epoch % freq == 0) or (epoch == self.final_epoch)
 
     def is_log_epoch(self, epoch: int) -> bool:
-        return (epoch == 0) or (epoch % self.log_freq == 0) or (epoch == self.final_epoch)
+        return self._check_epoch(epoch, self.default_log_freq)
+
+    def is_metric_epoch(self, epoch: int, metric: str) -> bool:
+        freq = self.advanced_frequencies.get(metric, self.default_log_freq)
+        return self._check_epoch(epoch, freq)
 
     @abstractmethod
     def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
@@ -32,12 +47,38 @@ class AbstractLogger:
         pass
 
 
+def metric_action(name: str) -> Callable[[Callable], Callable]:
+    """Decorator that gates method execution based on per-metric logging frequency."""
+
+    def decorator(fn: Callable) -> Callable:
+        @functools.wraps(fn)
+        def wrapper(self, epoch: int, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
+            if not self.logger.is_metric_epoch(epoch, name):
+                return {}
+            return fn(self, epoch, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 @gin.configurable
 class StdOutLogger(AbstractLogger):
     """Logger class, writing to a file or stdout"""
 
-    def __init__(self, epochs: int, log_freq: int, run_params: dict = {}, file: str = None) -> None:
-        super().__init__(epochs=epochs, log_freq=log_freq)
+    def __init__(
+        self,
+        epochs: int,
+        default_log_freq: int,
+        run_params: dict = {},
+        file: str = None,
+        advanced_frequencies: Dict[str, int] = {},
+    ) -> None:
+        super().__init__(
+            epochs=epochs,
+            default_log_freq=default_log_freq,
+            advanced_frequencies=advanced_frequencies,
+        )
         self.file = open(file, 'a') if file else None
         print('-----Starting stdout logging for run-----', file=self.file)
         for name, value in run_params.items():
@@ -68,8 +109,18 @@ class StdOutLogger(AbstractLogger):
 class WandbLogger(AbstractLogger):
     """Logger class, sending all telemetry data to Weights & Biases"""
 
-    def __init__(self, epochs: int, log_freq: int, run_params: dict = {}) -> None:
-        super().__init__(epochs=epochs, log_freq=log_freq)
+    def __init__(
+        self,
+        epochs: int,
+        default_log_freq: int,
+        run_params: dict = {},
+        advanced_frequencies: Dict[str, int] = {},
+    ) -> None:
+        super().__init__(
+            epochs=epochs,
+            default_log_freq=default_log_freq,
+            advanced_frequencies=advanced_frequencies,
+        )
         self.wandb_run = wandb.init(
             entity=os.environ.get('wandb_entity'),
             project=os.environ.get('wandb_project'),
@@ -113,20 +164,35 @@ class MultipleLoggers(AbstractLogger):
     def __init__(
         self,
         epochs: int,
-        log_freq: int,
+        default_log_freq: int,
         run_params: dict,
         stdout: bool = False,
         wandb: bool = False,
+        advanced_frequencies: Dict[str, int] = {},
     ) -> None:
-        super().__init__(epochs=epochs, log_freq=log_freq)
-        self.loggers = []
+        super().__init__(
+            epochs=epochs,
+            default_log_freq=default_log_freq,
+            advanced_frequencies=advanced_frequencies,
+        )
+        self.loggers: AbstractLogger = []
         if stdout:
             self.loggers.append(
-                StdOutLogger(epochs=epochs, log_freq=log_freq, run_params=run_params)
+                StdOutLogger(
+                    epochs=epochs,
+                    default_log_freq=default_log_freq,
+                    run_params=run_params,
+                    advanced_frequencies=advanced_frequencies,
+                )
             )
         if wandb:
             self.loggers.append(
-                WandbLogger(epochs=epochs, log_freq=log_freq, run_params=run_params)
+                WandbLogger(
+                    epochs=epochs,
+                    default_log_freq=default_log_freq,
+                    run_params=run_params,
+                    advanced_frequencies=advanced_frequencies,
+                )
             )
 
     def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:

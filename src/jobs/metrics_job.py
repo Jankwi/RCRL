@@ -15,7 +15,13 @@ from src.envs import ValueEstimator, VectorizedEnvironment
 from src.envs.explore import eval_no_search
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.visual import get_trajectory_gifs
-from src.jobs.utils.logging import AbstractLogger, MultipleLoggers, StdOutLogger, WandbLogger
+from src.jobs.utils.logging import (
+    AbstractLogger,
+    MultipleLoggers,
+    StdOutLogger,
+    WandbLogger,
+    metric_action,
+)
 
 
 @gin.configurable
@@ -38,7 +44,7 @@ class MetricsJob:
         spec_mgr_param: Dict[str, SpecialStateManager] = {},
         gin_config: Dict[str, str] = None,
         checkpoint_dir: str = 'checkpoints',
-        checkpoint_models: str = 'dont', # one of 'dont', 'local', 'log'
+        checkpoint_models: str = 'dont',  # one of 'dont', 'local', 'log'
         solve_attempts: int = 1024,
         n_gifs: int = 0,
         gif_max_len: int = None,
@@ -62,7 +68,8 @@ class MetricsJob:
         self.checkpoint_models = checkpoint_models
         self.n_gifs, self.gif_max_len = n_gifs, gif_max_len
 
-    def measure_valid_loss(self) -> Dict[str, float]:
+    @metric_action('valid_loss')
+    def measure_valid_loss(self, epoch: int) -> Dict[str, float]:
         """Completes a full sweep of the validation data set, and computes the loss function"""
         valid_loss = torch.tensor([0.0], device=self.device)
 
@@ -73,11 +80,13 @@ class MetricsJob:
 
         return {'valid_loss': valid_loss.cpu().item() / self.validset.get_batches_per_epoch()}
 
-    def measure_solved_rate(self) -> Dict[str, float]:
+    @metric_action('solved_rate')
+    def measure_solved_rate(self, epoch: int) -> Dict[str, float]:
         """Simulates solving attempts (no search) with the current model. Returns the solved rate"""
         starting = self.validset.get_random_starting_positions(k=self.solve_attempts)
         return eval_no_search(starting, self.env, self.ve)
 
+    @metric_action('state_dict')
     def save_checkpoint(self, epoch: int, dir: str) -> None:
         """Saves model & optimizer states locally, and then passes them to the logger"""
         if self.checkpoint_models == 'local' or self.checkpoint_models == 'log':
@@ -87,6 +96,7 @@ class MetricsJob:
             if self.checkpoint_models == 'log':
                 self.logger.log_state_dicts(epoch, {'model': model_path, 'optimizer': optim_path})
 
+    @metric_action('gif')
     def create_trajectory_gifs(self, epoch: int, dir: str) -> None:
         """Creates gifs, with subsequent frames depicting subsequent trajectory states"""
         if self.n_gifs == 0:
@@ -118,8 +128,8 @@ class MetricsJob:
             epoch,
             (
                 {'train_loss': avg_train_loss}
-                | self.measure_valid_loss()
-                | self.measure_solved_rate()
+                | self.measure_valid_loss(epoch)
+                | self.measure_solved_rate(epoch)
             ),
         )
 
