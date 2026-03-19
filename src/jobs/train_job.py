@@ -16,7 +16,7 @@ from src.contrastivelib.datasets import (
 )
 from src.contrastivelib.metrics.losses import AbstractContrastiveLoss
 from src.contrastivelib.metrics.sims import get_similarity_measure
-from src.contrastivelib.networks import BroNet
+from src.contrastivelib.networks import BroNet, ConvNet, Embedding2D, LNConvNet, LNDenseNet
 from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
 from src.jobs import AbstractJob
 from src.jobs.metrics_job import MetricsJob
@@ -80,7 +80,7 @@ class TrainJob(AbstractJob):
             sim_fn=sim_fn,
             loss_fn=self.loss_fn,
             gin_config=gin_config,
-            **spec_mgr_param,
+            spec_mgr_param=spec_mgr_param,
         )
 
     def execute(self) -> None:
@@ -102,7 +102,7 @@ class TrainJob(AbstractJob):
                 with torch.no_grad():
                     train_loss_sum += loss
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 self.metrics_job.execute(
                     epoch, train_loss_sum.cpu().item() / self.trainset.get_batches_per_epoch()
                 )

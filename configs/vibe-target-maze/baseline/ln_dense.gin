@@ -1,0 +1,33 @@
+run.seed = 71
+run.job_class = @TrainJob
+    TrainJob.embed_dim = 32
+    TrainJob.metric_name = 'L22'
+    TrainJob.normalize = False
+    TrainJob.trainset_path = 'data/vibe-target-maze/train'
+    TrainJob.epochs = 10
+    TrainJob.lr = 0.001
+    TrainJob.loss_class = @BaselineContrastiveLoss
+    TrainJob.base_model_class = @LNDenseNet
+        LNDenseNet.input_network_class = @ConvNet
+            ConvNet.grid_dim = 21
+        LNDenseNet.hidden_size = 16
+        LNDenseNet.block_depth = 4
+    TrainJob.dataset_class = @ContrastiveDatasetNoSpecial
+        ContrastiveDatasetNoSpecial.batch_size = 1024
+        ContrastiveDatasetNoSpecial.repetition_factor = 4
+    TrainJob.metrics_job_class = @MetricsJob
+        MetricsJob.validset_path = 'data/vibe-target-maze/valid'
+        MetricsJob.validset_class = @ContrastiveDatasetNoSpecial
+        MetricsJob.logger_class = @MultipleLoggers
+            MultipleLoggers.default_log_freq = 2
+            MultipleLoggers.advanced_frequencies = {
+                'gif': 10,
+            }
+            MultipleLoggers.skip_first_metrics = ['gif', 'solved_rate']
+            MultipleLoggers.wandb = True
+        MetricsJob.solve_attempts = 256
+        MetricsJob.n_gifs = 5
+        MetricsJob.checkpoint_models = 'haha...no'
+        MetricsJob.env_class = @VectorizedTargetMaze
+            VectorizedTargetMaze.grid_dim = 21
+        MetricsJob.ve_class = @ManyGoalsValueEstimator

@@ -74,7 +74,7 @@ class AbstractContrastiveDataset(IterableDataset):
         data = {self.master_tn: master_tensor[perm][:ub]}
         for tn in self.tensor_names:
             data[tn] = torch.from_numpy(joblib.load(file_set[tn]))[perm][:ub]
-        return TensorDict(data, batch_size=[ub]), ub // self.chunk_size
+        return TensorDict(data, batch_size=[ub]).to(self.device), ub // self.chunk_size
 
     @abstractmethod
     def contrastive_pick(self, **kwargs: torch.Tensor) -> Tuple[TensorDict, TensorDict]:
@@ -88,4 +88,4 @@ class AbstractContrastiveDataset(IterableDataset):
             data, num_batches = self._load_file_set(file_set)
             for i in range(num_batches):
                 lb, ub = i * self.chunk_size, (i + 1) * self.chunk_size
-                yield self.contrastive_pick(**data[lb:ub].to(self.device))
+                yield self.contrastive_pick(**data[lb:ub])

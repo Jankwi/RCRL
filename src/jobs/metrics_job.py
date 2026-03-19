@@ -18,6 +18,7 @@ from src.envs.maze.target import VectorizedTargetMaze
 from src.envs.visual import get_trajectory_gifs
 from src.jobs.utils.logging import (
     AbstractLogger,
+    BestValOsLogger,
     MultipleLoggers,
     StdOutLogger,
     WandbLogger,
@@ -68,6 +69,13 @@ class MetricsJob:
         self.solve_attempts = solve_attempts
         self.checkpoint_models = checkpoint_models
         self.n_gifs, self.gif_max_len = n_gifs, gif_max_len
+        self.epoch_dir = ''
+
+    def _get_epoch_dir(self, epoch: int) -> str:
+        epoch_dir = f'{self.checkpoint_dir}/{epoch}/'
+        if self.epoch_dir != epoch_dir:
+            os.makedirs(epoch_dir, exist_ok=True)
+        return epoch_dir
 
     @metric_action('valid_loss')
     def measure_valid_loss(self, epoch: int) -> Dict[str, float]:
@@ -88,8 +96,9 @@ class MetricsJob:
         return eval_no_search(starting, self.env, self.ve)
 
     @metric_action('state_dict')
-    def save_checkpoint(self, epoch: int, dir: str) -> None:
+    def save_checkpoint(self, epoch: int) -> None:
         """Saves model & optimizer states locally, and then passes them to the logger"""
+        dir = self._get_epoch_dir(epoch)
         if self.checkpoint_models == 'local' or self.checkpoint_models == 'log':
             model_path, optim_path = f'{dir}/model.pt', f'{dir}/optimizer.pt'
             torch.save(self.model.state_dict(), model_path)
@@ -98,14 +107,14 @@ class MetricsJob:
                 self.logger.log_state_dicts(epoch, {'model': model_path, 'optimizer': optim_path})
 
     @metric_action('gif')
-    def create_trajectory_gifs(self, epoch: int, dir: str) -> None:
+    def create_trajectory_gifs(self, epoch: int) -> None:
         """Creates gifs, with subsequent frames depicting subsequent trajectory states"""
         if self.n_gifs == 0:
             return
 
         starting = self.validset.get_random_starting_positions(k=self.n_gifs)
         materials = get_trajectory_gifs(starting, self.env, self.ve, self.gif_max_len)
-        dir = f'{dir}/gifs'
+        dir = f'{self._get_epoch_dir(epoch)}/gifs'
         os.makedirs(dir, exist_ok=True)
 
         gifs_dict: Dict[str, str] = {}
@@ -120,10 +129,8 @@ class MetricsJob:
 
         self.model.eval()
 
-        epoch_dir = f'{self.checkpoint_dir}/{epoch}/'
-        os.makedirs(epoch_dir, exist_ok=True)
-        self.save_checkpoint(epoch, dir=epoch_dir)
-        self.create_trajectory_gifs(epoch, dir=epoch_dir)
+        self.save_checkpoint(epoch)
+        self.create_trajectory_gifs(epoch)
 
         self.logger.log_metrics(
             epoch,

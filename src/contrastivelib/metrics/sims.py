@@ -32,10 +32,7 @@ class SimilarityMeasure:
             case 'elementwise':
                 return self._measure(a=a, b=b)
             case 'cross':
-                return self._measure(
-                    torch.repeat_interleave(a.unsqueeze(1), b.shape[0], 1),
-                    torch.repeat_interleave(b.unsqueeze(0), a.shape[0], 0),
-                )
+                return self._measure(a.unsqueeze(1), b.unsqueeze(0))
             case _:
                 raise ValueError(f'Invalid similarity measure mode {mode}')
 

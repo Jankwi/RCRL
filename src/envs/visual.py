@@ -1,6 +1,9 @@
 import io
 from typing import List
 
+import matplotlib
+
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import torch
 from PIL import Image
@@ -20,16 +23,17 @@ def get_trajectory_gifs(
     n_traj = starting_positions.shape[0]
     max_len_kwargs = {'max_len': max_len} if max_len is not None else {}
     tensors, _ = eval_no_search(starting_positions, env, ve, DeepStateStorage, **max_len_kwargs)
+    tensors = tensors.cpu()
 
     materials: List[List[Image.Image]] = []
     for i in range(n_traj):
         frames: List[Image.Image] = []
 
-        traj = tensors[i]['trajectories']
+        traj = tensors[i]['trajectories'].numpy()
         length = tensors[i]['lengths']
-        for j in range(length.cpu().item()):
+        for j in range(length.item()):
             buf = io.BytesIO()
-            fig = env.render_state(traj[j].cpu().numpy())
+            fig = env.render_state(traj[j])
             fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1)
             buf.seek(0)
             img = Image.open(buf)

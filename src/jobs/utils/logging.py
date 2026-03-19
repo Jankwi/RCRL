@@ -1,7 +1,8 @@
 import functools
 import os
+import tempfile
 from abc import abstractmethod
-from typing import Callable, Dict
+from typing import Callable, Dict, Set
 
 import gin
 
@@ -15,12 +16,16 @@ class AbstractLogger:
         default_log_freq: int,
         run_params: dict = None,
         advanced_frequencies: Dict[str, int] = {},
+        skip_first_metrics: Set[str] = set(),
     ) -> None:
         self.final_epoch = epochs - 1
         self.default_log_freq = default_log_freq
         self.advanced_frequencies = advanced_frequencies
+        self.skip_first_metrics = skip_first_metrics
 
-    def _check_epoch(self, epoch: int, freq: int) -> bool:
+    def _check_epoch(self, epoch: int, freq: int, skip_first: bool = False) -> bool:
+        if skip_first and epoch == 0:
+            return False
         return (epoch == 0) or (epoch % freq == 0) or (epoch == self.final_epoch)
 
     def is_log_epoch(self, epoch: int) -> bool:
@@ -28,7 +33,8 @@ class AbstractLogger:
 
     def is_metric_epoch(self, epoch: int, metric: str) -> bool:
         freq = self.advanced_frequencies.get(metric, self.default_log_freq)
-        return self._check_epoch(epoch, freq)
+        skip_first = metric in self.skip_first_metrics
+        return self._check_epoch(epoch, freq, skip_first=skip_first)
 
     @abstractmethod
     def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
@@ -73,34 +79,36 @@ class StdOutLogger(AbstractLogger):
         run_params: dict = {},
         file: str = None,
         advanced_frequencies: Dict[str, int] = {},
+        skip_first_metrics: Set[str] = set(),
     ) -> None:
         super().__init__(
             epochs=epochs,
             default_log_freq=default_log_freq,
             advanced_frequencies=advanced_frequencies,
+            skip_first_metrics=skip_first_metrics,
         )
         self.file = open(file, 'a') if file else None
-        print('-----Starting stdout logging for run-----', file=self.file)
+        print('\n-----Starting stdout logging for run-----', file=self.file)
         for name, value in run_params.items():
             print(f'  {name}: {value}', file=self.file)
 
     def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
-        print(f'-----Gifs for {epoch}-----', file=self.file)
+        print(f'\n-----Gifs for {epoch}-----', file=self.file)
         for name, value in paths_dict.items():
             print(f'{name}: {value}', file=self.file)
 
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
-        print(f'-----State dicts for {epoch}-----', file=self.file)
+        print(f'\n-----State dicts for {epoch}-----', file=self.file)
         for name, value in paths_dict.items():
             print(f'{name}: {value}', file=self.file)
 
     def log_metrics(self, epoch: int, metrics_dict: Dict[str, float]) -> None:
-        print(f'-----Metrics for epoch {epoch}-----', file=self.file)
+        print(f'\n-----Metrics for epoch {epoch}-----', file=self.file)
         for name, value in metrics_dict.items():
             print(f'  {name}: {value}', file=self.file)
 
     def finish_run(self) -> None:
-        print('-----Run finished-----', file=self.file)
+        print('\n-----Run finished-----', file=self.file)
         if self.file:
             self.file.close()
 
@@ -115,11 +123,13 @@ class WandbLogger(AbstractLogger):
         default_log_freq: int,
         run_params: dict = {},
         advanced_frequencies: Dict[str, int] = {},
+        skip_first_metrics: Set[str] = set(),
     ) -> None:
         super().__init__(
             epochs=epochs,
             default_log_freq=default_log_freq,
             advanced_frequencies=advanced_frequencies,
+            skip_first_metrics=skip_first_metrics,
         )
         self.wandb_run = wandb.init(
             entity=os.environ.get('wandb_entity'),
@@ -158,6 +168,49 @@ class WandbLogger(AbstractLogger):
 
 
 @gin.configurable
+class BestValOsLogger(AbstractLogger):
+    """Logger that tracks the best value of a specified metric and writes it to a temp file."""
+
+    def __init__(
+        self,
+        epochs: int,
+        default_log_freq: int,
+        metric_name: str,
+        run_params: dict = {},
+        advanced_frequencies: Dict[str, int] = {},
+        skip_first_metrics: Set[str] = set(),
+    ) -> None:
+        super().__init__(
+            epochs=epochs,
+            default_log_freq=default_log_freq,
+            advanced_frequencies=advanced_frequencies,
+            skip_first_metrics=skip_first_metrics,
+        )
+        self.metric_name = metric_name
+        self.best_val = float('-inf')
+
+    def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        pass
+
+    def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        pass
+
+    def log_metrics(self, epoch: int, metrics_dict: Dict[str, float]) -> None:
+        if self.metric_name in metrics_dict:
+            val = metrics_dict[self.metric_name]
+            if val > self.best_val:
+                self.best_val = val
+
+    @staticmethod
+    def result_path(metric_name: str) -> str:
+        return os.path.join(tempfile.gettempdir(), f'{metric_name}_max_val.txt')
+
+    def finish_run(self) -> None:
+        with open(self.result_path(self.metric_name), 'w') as f:
+            f.write(str(self.best_val))
+
+
+@gin.configurable
 class MultipleLoggers(AbstractLogger):
     """Logger class, comprising of multiple sub-loggers"""
 
@@ -166,14 +219,17 @@ class MultipleLoggers(AbstractLogger):
         epochs: int,
         default_log_freq: int,
         run_params: dict,
-        stdout: bool = False,
-        wandb: bool = False,
+        stdout: bool = True,
+        wandb: bool = True,
+        best_val_os: bool = False,
         advanced_frequencies: Dict[str, int] = {},
+        skip_first_metrics: Set[str] = set(),
     ) -> None:
         super().__init__(
             epochs=epochs,
             default_log_freq=default_log_freq,
             advanced_frequencies=advanced_frequencies,
+            skip_first_metrics=skip_first_metrics,
         )
         self.loggers: AbstractLogger = []
         if stdout:
@@ -183,6 +239,7 @@ class MultipleLoggers(AbstractLogger):
                     default_log_freq=default_log_freq,
                     run_params=run_params,
                     advanced_frequencies=advanced_frequencies,
+                    skip_first_metrics=skip_first_metrics,
                 )
             )
         if wandb:
@@ -192,6 +249,16 @@ class MultipleLoggers(AbstractLogger):
                     default_log_freq=default_log_freq,
                     run_params=run_params,
                     advanced_frequencies=advanced_frequencies,
+                    skip_first_metrics=skip_first_metrics,
+                )
+            )
+        if best_val_os:
+            self.loggers.append(
+                BestValOsLogger(
+                    epochs=epochs,
+                    default_log_freq=default_log_freq,
+                    advanced_frequencies=advanced_frequencies,
+                    skip_first_metrics=skip_first_metrics,
                 )
             )
 

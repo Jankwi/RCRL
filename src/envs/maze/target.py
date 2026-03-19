@@ -42,4 +42,4 @@ class VectorizedTargetMaze(AbstractVectorizedMaze):
         return torch.where(have_target, goals_no_pos, goals)
 
     def is_solved(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
-        return torch.all(states == goals, dim=(1, 2))
+        return torch.all(states != self.target_marker, dim=(1, 2))
