@@ -11,7 +11,7 @@ from src.envs.maze.state_sets import MazeVectorizedStateSet
 
 class TestVectorizedQuarterMaze:
     def setup_method(self, method):
-        self.pos_marker = 2
+        self.pos_marker = 3
         self.seed = 42
         fix_seed(self.seed)
 

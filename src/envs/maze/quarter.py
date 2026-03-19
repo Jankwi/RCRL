@@ -16,7 +16,7 @@ class VectorizedQuarterMaze(AbstractVectorizedMaze):
         self,
         device: torch.device,
         grid_dim: int = 20,
-        pos_marker: int = 2,
+        pos_marker: int = 3,
         spec_mgr: SpecialStateManager = None,
     ) -> None:
         super().__init__(device=device, grid_dim=grid_dim, pos_marker=pos_marker)

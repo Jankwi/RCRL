@@ -3,29 +3,27 @@ run.job_class = @TrainJob
     TrainJob.embed_dim = 128
     TrainJob.metric_name = 'L22'
     TrainJob.normalize = False
-    TrainJob.trainset_path = 'data/vibe-maze-2/train'
+    TrainJob.trainset_path = 'data/vibe-target-maze/train'
     TrainJob.epochs = 6
     TrainJob.loss_class = @BaselineContrastiveLoss
     TrainJob.base_model_class = @BroNet
-        BroNet.input_dim = 400
+        BroNet.input_dim = 441
         BroNet.normalize_output = False
         BroNet.dropout = 0.1
     TrainJob.dataset_class = @ContrastiveDatasetNoSpecial
         ContrastiveDatasetNoSpecial.batch_size = 256
         ContrastiveDatasetNoSpecial.repetition_factor = 2
     TrainJob.metrics_job_class = @MetricsJob
-        MetricsJob.validset_path = 'data/vibe-maze-2/valid'
+        MetricsJob.validset_path = 'data/vibe-target-maze/valid'
         MetricsJob.validset_class = @ContrastiveDatasetNoSpecial
         MetricsJob.logger_class = @StdOutLogger
             StdOutLogger.default_log_freq = 1
             StdOutLogger.advanced_frequencies = {
-                'gif': 3,
-                'solved_rate': 2,
-                'valid_loss': 1,
+                'gif': 1,
             }
         MetricsJob.solve_attempts = 1024
-        MetricsJob.n_gifs = 3
+        MetricsJob.n_gifs = 10
         MetricsJob.checkpoint_models = 'haha...no'
-        MetricsJob.env_class = @VectorizedQuarterMaze
-            VectorizedQuarterMaze.grid_dim = 20
+        MetricsJob.env_class = @VectorizedTargetMaze
+            VectorizedTargetMaze.grid_dim = 21
         MetricsJob.ve_class = @ManyGoalsValueEstimator

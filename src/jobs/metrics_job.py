@@ -14,6 +14,7 @@ from src.contrastivelib.utils.special import SpecialStateManager
 from src.envs import ValueEstimator, VectorizedEnvironment
 from src.envs.explore import eval_no_search
 from src.envs.maze.quarter import VectorizedQuarterMaze
+from src.envs.maze.target import VectorizedTargetMaze
 from src.envs.visual import get_trajectory_gifs
 from src.jobs.utils.logging import (
     AbstractLogger,

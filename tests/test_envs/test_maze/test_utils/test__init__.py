@@ -9,7 +9,7 @@ class TestGetPosIndices:
     """Tests AbstractVectorizedMaze's methods related to positions, and making moves"""
 
     def setup_method(self, method):
-        self.pos_marker = 2
+        self.pos_marker = 3
         self.seed = 42
 
     @pytest.mark.parametrize(

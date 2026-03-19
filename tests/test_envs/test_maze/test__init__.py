@@ -19,7 +19,8 @@ class TestAbstractVectorizedMazePositions:
     """Tests AbstractVectorizedMaze's methods related to positions, and making moves"""
 
     def setup_method(self, method):
-        self.pos_marker = 2
+        self.pos_marker = 3
+        self.target_marker = 2
         self.seed = 42
 
     @pytest.mark.parametrize(
@@ -28,43 +29,50 @@ class TestAbstractVectorizedMazePositions:
             # action 0 (up): batch of 2, both legal
             #   board 0: agent (1,0)→(0,0) free   board 1: agent (1,1)→(0,1) free
             (
-                [[[0, 0], [2, 0]], [[0, 0], [0, 2]]],
+                [[[0, 0], [3, 0]], [[0, 0], [0, 3]]],
                 0,
                 [True, True],
-                [[[2, 0], [0, 0]], [[0, 2], [0, 0]]],
+                [[[3, 0], [0, 0]], [[0, 3], [0, 0]]],
+            ),
+            # Same us above, but with a target in the second board
+            (
+                [[[0, 0], [3, 0]], [[0, 0], [2, 3]]],
+                0,
+                [True, True],
+                [[[3, 0], [0, 0]], [[0, 3], [2, 0]]],
             ),
             # action 1 (right): board 0 legal (0,0)→(0,1) free, board 1 illegal boundary clamped
             (
-                [[[2, 0], [0, 1]], [[0, 2], [0, 0]]],
+                [[[3, 0], [0, 1]], [[0, 3], [0, 0]]],
                 1,
                 [True, False],
-                [[[0, 2], [0, 1]]],
+                [[[0, 3], [0, 1]]],
             ),
             # action 2 (down): single board, boundary hit (1,0) clamped → illegal
             (
-                [[[0, 1], [2, 0]]],
+                [[[0, 1], [3, 0]]],
                 2,
                 [False],
                 [],
             ),
             # action 3 (left): board 0 wall hit, agent (0,1) blocked by wall at (0,0)=1 → illegal,
-            #                   board 1 legal (1,1)→(1,0) free
+            #                   board 1 legal (1,1)→(1,0) free (agent reaches the target)
             (
-                [[[1, 2], [0, 0]], [[0, 0], [0, 2]]],
+                [[[1, 3], [0, 0]], [[0, 0], [2, 3]]],
                 3,
                 [False, True],
-                [[[0, 0], [2, 0]]],
+                [[[0, 0], [3, 0]]],
             ),
             # action 0 (up): agent blocked by wall above, (1,1)→(0,1)=wall → illegal
             (
-                [[[0, 1], [0, 2]]],
+                [[[0, 1], [2, 3]]],
                 0,
                 [False],
                 [],
             ),
             # action 1 (right): agent blocked by wall to the right, (1,0)→(1,1)=wall → illegal
             (
-                [[[0, 0], [2, 1]]],
+                [[[0, 0], [3, 1]]],
                 1,
                 [False],
                 [],

@@ -11,7 +11,7 @@ class TestMazeVectorizedStateSet:
     def setup_method(self, method):
         """Initialize shared constants and maze templates"""
         torch.manual_seed(42)
-        self.pos_marker = 2
+        self.pos_marker = 3
         self.tol = 1e-5
 
     def add_and_check(self, sets, states, idx):
@@ -27,7 +27,7 @@ class TestMazeVectorizedStateSet:
         'wall_layout',
         [
             [[[1, 0], [0, 0]], [[1, 1], [0, 1]], [[1, 1], [0, 1]]],  # (3x) 2x2
-            [[[1, 1, 1], [1, 0, 1], [1, 0, 0]], [[0, 0, 0], [1, 0, 1], [1, 0, 1]]],  # (2x) 3x3
+            [[[1, 1, 1], [1, 2, 1], [1, 0, 0]], [[2, 0, 0], [1, 0, 1], [1, 0, 1]]],  # (2x) 3x3
             [[[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 0, 0], [0, 0, 0, 1]]],  # (1x) 4x4
         ],
     )
@@ -43,7 +43,7 @@ class TestMazeVectorizedStateSet:
 
         for i in range(grid_dim):
             for j in range(grid_dim):
-                idx = wall_layout_tensor[:, i, j] == 0
+                idx = wall_layout_tensor[:, i, j] != 1
 
                 if torch.any(idx).item():
                     states = torch.clone(wall_layout_tensor[idx])
@@ -55,9 +55,9 @@ class TestMazeVectorizedStateSet:
     @pytest.mark.parametrize(
         'states_list',
         [
-            [[[2, 1], [0, 1]], [[2, 1], [0, 1]], [[0, 0], [0, 2]]],  # (3x) 2x2
-            [[[1, 1, 1], [1, 2, 1], [1, 0, 0]], [[0, 2, 0], [1, 0, 1], [1, 0, 1]]],  # (2x) 3x3
-            [[[0, 1, 1, 0], [0, 1, 2, 0], [0, 0, 0, 0], [1, 1, 0, 1]]],  # (1x) 4x4
+            [[[3, 1], [0, 1]], [[3, 1], [2, 1]], [[0, 0], [0, 3]]],  # (3x) 2x2
+            [[[1, 1, 1], [1, 3, 1], [1, 0, 0]], [[0, 3, 0], [1, 0, 1], [1, 0, 1]]],  # (2x) 3x3
+            [[[0, 1, 1, 0], [0, 1, 3, 0], [0, 0, 0, 0], [1, 1, 0, 1]]],  # (1x) 4x4
         ],
     )
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])
@@ -83,25 +83,47 @@ class TestMazeVectorizedStateSet:
                         # Additions are designed, so that after the end:
                         #  Set 0 is full (all legal positions)
                         #  Set 1 is missing only [[0, 0], [0, 0]]
-                        ([[[2, 1], [0, 1]], [[2, 0], [0, 0]]], [True, True]),
-                        ([[[0, 2], [0, 0]]], [False, True]),
-                        ([[[0, 1], [2, 1]]], [True, False]),
-                        ([[[0, 0], [0, 2]]], [False, True]),
+                        ([[[3, 1], [0, 1]], [[3, 0], [0, 0]]], [True, True]),
+                        ([[[0, 3], [0, 0]]], [False, True]),
+                        ([[[0, 1], [3, 1]]], [True, False]),
+                        ([[[0, 0], [0, 3]]], [False, True]),
                     ],
                     [
                         (
-                            [[[2, 1], [0, 1]], [[0, 0], [2, 0]]],
+                            [[[3, 1], [0, 1]], [[0, 0], [3, 0]]],
                             [True, True],
                             [False, True],
                         ),  # the second one is missing
-                        ([[[0, 0], [2, 0]]], [False, True], [True]),  # is missing
+                        ([[[0, 0], [3, 0]]], [False, True], [True]),  # is missing
                         (
-                            [[[0, 1], [2, 1]]],
+                            [[[0, 1], [3, 1]]],
                             [True, False],
                             [False],
                         ),  # is not missing (present in set)
                     ],
-                )
+                ),
+                (  # Same as above, but with a target marker (shouldn't change anything)
+                    2,
+                    [
+                        ([[[3, 1], [2, 1]], [[3, 0], [2, 0]]], [True, True]),
+                        ([[[0, 3], [2, 0]]], [False, True]),
+                        ([[[0, 1], [3, 1]]], [True, False]),
+                        ([[[0, 0], [2, 3]]], [False, True]),
+                    ],
+                    [
+                        (
+                            [[[3, 1], [2, 1]], [[0, 0], [3, 0]]],
+                            [True, True],
+                            [False, True],
+                        ),  # the second one is missing
+                        ([[[0, 0], [3, 0]]], [False, True], [True]),  # is missing
+                        (
+                            [[[2, 1], [3, 1]]],
+                            [True, False],
+                            [False],
+                        ),  # is not missing (present in set)
+                    ],
+                ),
             ]
         ),
     )

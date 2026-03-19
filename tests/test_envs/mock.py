@@ -37,6 +37,9 @@ class MockVectorizedEnvironment(VectorizedEnvironment):
     def is_solved(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
         return states[:, 1] == goals
 
+    def render_state(self, state) -> None:
+        return None
+
 
 class MockValueEstimator(ValueEstimator):
     """
