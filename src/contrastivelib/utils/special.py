@@ -27,17 +27,25 @@ class SpecialStateManager:
         return self.template.unsqueeze(0).expand(n_special_states, *self.shape).clone()
 
 
+@gin.configurable
 class SpecialStateModelWrapper(nn.Module):
     """Module wrapper: returns an embedding for the special token, base model output otherwise"""
 
     def __init__(
-        self, base_model: nn.Module, spec_mgr: SpecialStateManager, embed_dim: int
+        self,
+        base_model: nn.Module,
+        spec_mgr: SpecialStateManager,
+        embed_dim: int,
+        trainable_special: bool = True,
     ) -> None:
         super().__init__()
         self.base_model = base_model
         self.spec_mgr = spec_mgr
         self.embed_dim = embed_dim
-        self.special_embed = nn.Parameter(torch.randn(embed_dim))
+        if trainable_special:
+            self.special_embed = nn.Parameter(torch.randn(embed_dim))
+        else:
+            self.register_buffer('special_embed', torch.zeros(embed_dim))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         spec_mask = self.spec_mgr.detect_special_states(x)

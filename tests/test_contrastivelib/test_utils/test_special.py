@@ -108,6 +108,7 @@ class TestSpecialStateModelWrapper:
             ((3, 3), 20, 40, [1], []),
         ],
     )
+    @pytest.mark.slow
     def test_wrapped_model(self, shape, train_sz, test_sz, spec_train_pos, spec_test_pos, device):
         """Tests SpecialStateModelWrapper's forward pass with special states"""
         if device == 'cuda' and not torch.cuda.is_available():
@@ -140,3 +141,34 @@ class TestSpecialStateModelWrapper:
         with torch.no_grad():
             test_y_hat = model(test_X)
             assert_close(test_y_hat, test_y, atol=self.atol, rtol=0.0)
+
+    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
+    @pytest.mark.parametrize('embed_dim', [4, 8])
+    @pytest.mark.parametrize('data_dim', [10])
+    @pytest.mark.parametrize('batch_size', [5])
+    @pytest.mark.parametrize('special_pos', [[], [1, 3], [0, 2, 4]])
+    def test_non_trainable(self, device, embed_dim, data_dim, batch_size, special_pos):
+        if device == 'cuda' and not torch.cuda.is_available():
+            pytest.skip('CUDA not available')
+
+        shape = (data_dim,)
+        states = torch.rand(batch_size, *shape, device=device)
+        for pos in special_pos:
+            states[pos] = self.val
+
+        base_model = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(data_dim, embed_dim),
+        ).to(device)
+
+        expected = base_model(states)
+        for pos in special_pos:
+            expected[pos] = 0.0
+
+        spec_mgr = SpecialStateManager(val=self.val, shape=shape, device=device)
+        model = SpecialStateModelWrapper(
+            base_model, spec_mgr, embed_dim, trainable_special=False
+        ).to(device)
+
+        result = model(states)
+        assert_close(result, expected)

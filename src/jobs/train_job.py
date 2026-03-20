@@ -41,6 +41,7 @@ class TrainJob(AbstractJob):
         dataset_class: Type[AbstractContrastiveDataset],
         metrics_job_class: Type[MetricsJob],
         spec_mgr_class: Type[SpecialStateManager] = None,
+        spec_model_wrapper_class: Type[nn.Module] = SpecialStateModelWrapper,
         gin_config: Dict[str, str] = None,
         epochs: int = None,
         lr: float = 0.001,
@@ -56,7 +57,7 @@ class TrainJob(AbstractJob):
 
         base_model = base_model_class(embed_dim=embed_dim)
         self.model = (
-            SpecialStateModelWrapper(base_model=base_model, spec_mgr=spec_mgr, embed_dim=embed_dim)
+            spec_model_wrapper_class(base_model=base_model, spec_mgr=spec_mgr, embed_dim=embed_dim)
             if spec_mgr is not None
             else base_model
         ).to(self.device)

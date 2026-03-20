@@ -71,6 +71,8 @@ class MetricsJob:
         self.n_gifs, self.gif_max_len = n_gifs, gif_max_len
         self.epoch_dir = ''
 
+        self.starting = self.validset.get_random_starting_positions(k=self.solve_attempts, device=torch.device('cpu'))
+
     def _get_epoch_dir(self, epoch: int) -> str:
         epoch_dir = f'{self.checkpoint_dir}/{epoch}/'
         if self.epoch_dir != epoch_dir:
@@ -92,8 +94,7 @@ class MetricsJob:
     @metric_action('solved_rate')
     def measure_solved_rate(self, epoch: int) -> Dict[str, float]:
         """Simulates solving attempts (no search) with the current model. Returns the solved rate"""
-        starting = self.validset.get_random_starting_positions(k=self.solve_attempts)
-        return eval_no_search(starting, self.env, self.ve)
+        return eval_no_search(self.starting.to(self.device), self.env, self.ve)
 
     @metric_action('state_dict')
     def save_checkpoint(self, epoch: int) -> None:

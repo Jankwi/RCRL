@@ -22,8 +22,15 @@ class AbstractContrastiveLoss(ABC):
 class BaselineContrastiveLoss(AbstractContrastiveLoss):
     """Applies symmetrized InfoNCE to states and goals"""
 
-    def __init__(self, embed_dim: int, sim_fn: SimilarityMeasure, device: torch.device) -> None:
+    def __init__(
+        self,
+        embed_dim: int,
+        sim_fn: SimilarityMeasure,
+        device: torch.device,
+        loss_type: str = 'backward',
+    ) -> None:
         super().__init__(embed_dim=embed_dim, sim_fn=sim_fn, device=device)
+        self.loss_type = loss_type
 
     def info_nce(self, psi_0: torch.Tensor, psi_T: torch.Tensor) -> torch.Tensor:
         exp_sims = self._get_exp_sim(psi_0, psi_T, 'cross')
@@ -31,7 +38,15 @@ class BaselineContrastiveLoss(AbstractContrastiveLoss):
         return loss.mean()
 
     def __call__(self, state: torch.Tensor, goal: torch.Tensor) -> torch.Tensor:
-        return (self.info_nce(state, goal) + self.info_nce(goal, state)) / 2
+        match self.loss_type:
+            case 'symmetric':
+                return (self.info_nce(state, goal) + self.info_nce(goal, state)) / 2
+            case 'forward':
+                return self.info_nce(state, goal)
+            case 'backward':
+                return self.info_nce(goal, state)
+            case _:
+                raise ValueError()
 
 
 @gin.configurable

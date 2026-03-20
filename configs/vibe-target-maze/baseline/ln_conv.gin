@@ -4,7 +4,7 @@ run.job_class = @TrainJob
     TrainJob.metric_name = 'L22'
     TrainJob.normalize = False
     TrainJob.trainset_path = 'data/vibe-target-maze/train'
-    TrainJob.epochs = 10
+    TrainJob.epochs = 20
     TrainJob.lr = 0.001
     TrainJob.loss_class = @BaselineContrastiveLoss
     TrainJob.base_model_class = @LNConvNet
@@ -19,13 +19,13 @@ run.job_class = @TrainJob
         MetricsJob.validset_path = 'data/vibe-target-maze/valid'
         MetricsJob.validset_class = @ContrastiveDatasetNoSpecial
         MetricsJob.logger_class = @MultipleLoggers
-            MultipleLoggers.default_log_freq = 2
+            MultipleLoggers.default_log_freq = 1
             MultipleLoggers.advanced_frequencies = {
                 'gif': 10,
             }
-            MultipleLoggers.skip_first_metrics = ['gif', 'solved_rate']
+            MultipleLoggers.skip_first_metrics = ['gif']
             MultipleLoggers.wandb = False
-        MetricsJob.solve_attempts = 256
+        MetricsJob.solve_attempts = 512
         MetricsJob.n_gifs = 5
         MetricsJob.checkpoint_models = 'haha...no'
         MetricsJob.env_class = @VectorizedTargetMaze
