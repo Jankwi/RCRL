@@ -41,6 +41,10 @@ class AbstractLogger:
         pass
 
     @abstractmethod
+    def log_image(self, epoch: int, paths_dict: Dict[str, str], format: str) -> None:
+        pass
+
+    @abstractmethod
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
         pass
 
@@ -97,6 +101,11 @@ class StdOutLogger(AbstractLogger):
         for name, value in paths_dict.items():
             print(f'{name}: {value}', file=self.file)
 
+    def log_image(self, epoch: int, paths_dict: Dict[str, str], format: str) -> None:
+        print(f'\n-----Images ({format}) for {epoch}-----', file=self.file)
+        for name, value in paths_dict.items():
+            print(f'{name}: {value}', file=self.file)
+
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
         print(f'\n-----State dicts for {epoch}-----', file=self.file)
         for name, value in paths_dict.items():
@@ -142,6 +151,11 @@ class WandbLogger(AbstractLogger):
         self.log_later = self.log_later | {
             f'{name}-epoch-{epoch}': wandb.Video(path, format='gif')
             for name, path in paths_dict.items()
+        }
+
+    def log_image(self, epoch: int, paths_dict: Dict[str, str], format: str) -> None:
+        self.log_later = self.log_later | {
+            f'{name}-epoch-{epoch}': wandb.Image(path) for name, path in paths_dict.items()
         }
 
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
@@ -190,6 +204,9 @@ class BestValOsLogger(AbstractLogger):
         self.best_val = float('-inf')
 
     def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
+        pass
+
+    def log_image(self, epoch: int, paths_dict: Dict[str, str], format: str) -> None:
         pass
 
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
@@ -265,6 +282,10 @@ class MultipleLoggers(AbstractLogger):
     def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
         for logger in self.loggers:
             logger.log_gifs(epoch, paths_dict)
+
+    def log_image(self, epoch: int, paths_dict: Dict[str, str], format: str) -> None:
+        for logger in self.loggers:
+            logger.log_image(epoch, paths_dict, format)
 
     def log_state_dicts(self, epoch: int, paths_dict: Dict[str, str]) -> None:
         for logger in self.loggers:

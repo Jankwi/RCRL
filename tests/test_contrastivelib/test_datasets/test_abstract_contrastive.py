@@ -9,6 +9,7 @@ from torch.testing import assert_close
 
 from src.contrastivelib.datasets.abstract_contrastive import AbstractContrastiveDataset
 from src.contrastivelib.utils import fix_seed
+from src.contrastivelib.utils.special import SpecialStateManager
 
 
 class _PassthroughDataset(AbstractContrastiveDataset):
@@ -172,6 +173,56 @@ class TestAbstractContrastiveFileLoading:
             all(any(torch.equal(s, fs) for fs in file_starts) for s in starting)
             for file_starts in all_file_starts
         )
+
+    @pytest.mark.parametrize('file_path', ['traj_len_abs'])
+    @pytest.mark.parametrize('with_spec_mgr', [False, True])
+    @pytest.mark.parametrize('last_n', [1, None])
+    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
+    @pytest.mark.parametrize('chunk_size', [1])
+    def test_get_random_trajectory_ends(
+        self, data_dirs, file_path, with_spec_mgr, last_n, chunk_size, device
+    ):
+        """Test the get_random_trajectory_ends method - for now just on whole trajectories"""
+        fix_seed(self.seed)
+
+        assert file_path == 'traj_len_abs'
+        trajectories, lengths = (
+            torch.from_numpy(self.abs_trajectories).to(device),
+            torch.from_numpy(self.abs_lengths).to(device),
+        )
+        spec_mgr = (
+            SpecialStateManager(-1, trajectories[0][0].shape, device=device)
+            if with_spec_mgr
+            else None
+        )
+        last_n = last_n if last_n is not None else len(trajectories[0])
+
+        lens = [int(lengths[i].cpu().item()) for i in range(len(trajectories))]
+        used_indices = [
+            (i, j)
+            for i in range(len(trajectories))
+            for j in range(max(0, lens[i] - last_n), lens[i])
+        ]
+        expected_states = torch.stack(
+            ([spec_mgr.create_many(1).squeeze(0)] if with_spec_mgr else [])
+            + [trajectories[i][j] for i, j in used_indices]
+        )
+        expected_labels = (['special'] if with_spec_mgr else []) + [
+            f'trajectory_{i}' for (i, j) in used_indices
+        ]
+
+        dataset = _PassthroughDataset(
+            file_sets_path=data_dirs[file_path],
+            tensor_names=['lengths'],
+            device=device,
+            chunk_size=chunk_size,
+            spec_mgr=spec_mgr,
+        )
+
+        states, labels = dataset.get_random_trajectory_ends(k=len(trajectories), last_n=last_n)
+        print(f'{len(expected_labels)=} {len(labels)=}')
+        assert labels == expected_labels
+        assert_close(states, expected_states)
 
     @pytest.mark.parametrize(
         'file_path, tensor_names',

@@ -3,6 +3,7 @@ import os
 from typing import Dict, Type
 
 import gin
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 
@@ -15,7 +16,7 @@ from src.envs import ValueEstimator, VectorizedEnvironment
 from src.envs.explore import eval_no_search
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
-from src.envs.visual import get_trajectory_gifs
+from src.envs.visual import get_embed_plots, get_trajectory_gifs
 from src.jobs.utils.logging import (
     AbstractLogger,
     BestValOsLogger,
@@ -50,6 +51,8 @@ class MetricsJob:
         solve_attempts: int = 1024,
         n_gifs: int = 0,
         gif_max_len: int = None,
+        n_embed_plots: int = 0,
+        embed_plot_max_len: int = 20,
     ) -> None:
         self.checkpoint_dir = checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
@@ -69,9 +72,13 @@ class MetricsJob:
         self.solve_attempts = solve_attempts
         self.checkpoint_models = checkpoint_models
         self.n_gifs, self.gif_max_len = n_gifs, gif_max_len
+        self.n_embed_plots, self.embed_plot_max_len = n_embed_plots, embed_plot_max_len
         self.epoch_dir = ''
 
-        self.starting = self.validset.get_random_starting_positions(k=self.solve_attempts, device=torch.device('cpu'))
+        self.starting = self.validset.get_random_starting_positions(
+            k=self.solve_attempts,
+            device=torch.device('cpu'),
+        )
 
     def _get_epoch_dir(self, epoch: int) -> str:
         epoch_dir = f'{self.checkpoint_dir}/{epoch}/'
@@ -123,6 +130,26 @@ class MetricsJob:
             filename = f'{dir}/trajectory-{i}.gif'
             frames[0].save(filename, save_all=True, append_images=frames[1:], duration=200, loop=0)
             gifs_dict[f'trajectory-{i}-gif'] = filename
+        self.logger.log_gifs(epoch, gifs_dict)
+
+    @metric_action('plot_embeds')
+    def plot_trajectory_embeddings(self, epoch: int) -> None:
+        """Creates and stores a t-SNE projection plot for trajectory-end embeddings."""
+        if self.n_embed_plots == 0:
+            return
+
+        tensors, labels = self.validset.get_random_trajectory_ends(
+            self.n_embed_plots,
+            self.embed_plot_max_len,
+        )
+        embeds = self.model(tensors)
+
+        fig = get_embed_plots(embeds, labels)
+        filename = f'{self._get_epoch_dir(epoch)}/trajectory-embeddings.png'
+        fig.savefig(filename, bbox_inches='tight', pad_inches=0.1)
+        plt.close(fig)
+
+        self.logger.log_image(epoch, {'trajectory-embeddings': filename}, format='png')
 
     def execute(self, epoch: int, avg_train_loss: float) -> None:
         if not self.logger.is_log_epoch(epoch):
@@ -132,6 +159,7 @@ class MetricsJob:
 
         self.save_checkpoint(epoch)
         self.create_trajectory_gifs(epoch)
+        self.plot_trajectory_embeddings(epoch)
 
         self.logger.log_metrics(
             epoch,

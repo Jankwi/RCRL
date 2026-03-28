@@ -10,6 +10,8 @@ import torch
 from tensordict import TensorDict
 from torch.utils.data import IterableDataset
 
+from src.contrastivelib.utils.special import SpecialStateManager
+
 
 @gin.configurable
 class AbstractContrastiveDataset(IterableDataset):
@@ -25,10 +27,12 @@ class AbstractContrastiveDataset(IterableDataset):
         device: torch.device,
         chunk_size: int,
         master_tn: str = 'trajectories',
+        spec_mgr: SpecialStateManager = None,
     ) -> None:
         self.device, self.chunk_size = device, chunk_size
         self.master_tn, self.tensor_names = master_tn, tensor_names
         self.file_sets = self._get_all_file_names(file_sets_path, tensor_names, master_tn)
+        self.spec_mgr = spec_mgr
 
     def _get_all_file_names(
         self, file_sets_path: str, tensor_names: List[str], master_tn: str
@@ -54,6 +58,38 @@ class AbstractContrastiveDataset(IterableDataset):
         assert len(trajectories) >= k
         indices = torch.randperm(len(trajectories))[:k]
         return trajectories[indices, 0].clone().to(device if device is not None else self.device)
+
+    def get_random_trajectory_ends(
+        self, k: int, last_n: int = None
+    ) -> Tuple[torch.Tensor, List[str]]:
+        """Samples k trajectories, returning flattened terminal states and labels."""
+        file_set = random.choice(self.file_sets)
+        assert 'lengths' in file_set
+
+        trajectories = torch.from_numpy(joblib.load(file_set[self.master_tn]))
+        lengths = torch.from_numpy(joblib.load(file_set['lengths'])).to(torch.long)
+        assert len(trajectories) >= k
+
+        indices = torch.randperm(len(trajectories))[:k]
+        trajectories, lengths = trajectories[indices], lengths[indices]
+
+        points_per_trajectory = trajectories.shape[1] if last_n is None else last_n
+        time_offsets = torch.arange(points_per_trajectory)
+        raw_time_idx = lengths.unsqueeze(1) - points_per_trajectory + time_offsets
+        valid_mask = raw_time_idx >= 0
+
+        batch_idx = torch.arange(k).unsqueeze(1)
+        safe_time_idx = raw_time_idx.clamp_min(0)
+        ends = trajectories[batch_idx, safe_time_idx][valid_mask].clone().to(self.device)
+
+        traj_idx = torch.arange(k).unsqueeze(1).expand(-1, points_per_trajectory)
+        labels = [f'trajectory_{i}' for i in traj_idx[valid_mask].tolist()]
+
+        if self.spec_mgr is not None:
+            ends = torch.cat((self.spec_mgr.create_many(1), ends))
+            labels = ['special'] + labels
+
+        return ends, labels
 
     def get_batches_per_epoch(self) -> int:
         """Returns the number of batches per epoch"""

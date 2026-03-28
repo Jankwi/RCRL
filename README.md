@@ -47,3 +47,7 @@ If you wish to execute all tests in a given directory run:
 ```
 uv run python3 -m pytest tests/path/to/testing/directory
 ```
+To deselect tests marked as slow, run:
+```
+uv run python -m pytest tests/path/to/testing/directory/ -m "not slow"
+```

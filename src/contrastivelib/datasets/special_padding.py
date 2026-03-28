@@ -32,9 +32,9 @@ class ContrastiveDatasetSpecialPadding(AbstractContrastiveDataset):
             tensor_names=['lengths'],
             device=device,
             chunk_size=int(batch_size / repetition_factor),
+            spec_mgr=spec_mgr,
         )
         self.device = device
-        self.spec_mgr = spec_mgr
         self.repetition_factor = repetition_factor
         self.sampler = DistributionSampler(device=self.device, gamma=gamma)
 
