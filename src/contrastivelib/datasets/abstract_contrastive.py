@@ -2,6 +2,7 @@ import os
 import random
 import re
 from abc import abstractmethod
+from contextlib import contextmanager
 from typing import Dict, Iterator, List, Tuple
 
 import gin
@@ -44,46 +45,62 @@ class AbstractContrastiveDataset(IterableDataset):
             match = re.match(rf'^(.*)_{master_tn}\.pkl$', master_filename)
             if match:
                 prefix = match.group(1)
-                file_sets.append({})
+                file_sets.append({'_prefix': prefix})
                 for suffix in tensor_names + [master_tn]:
                     extra_filename = f'{prefix}_{suffix}.pkl'
                     assert extra_filename in all_files
                     file_sets[-1][suffix] = f'{file_sets_path}/{extra_filename}'
         return sorted(file_sets, key=lambda fs: fs[master_tn])
 
-    def get_random_starting_positions(self, k: int, device: torch.device = None) -> torch.Tensor:
+    def get_random_starting_positions(
+        self,
+        k: int,
+        device: torch.device = None,
+        use_preloaded: bool = True,
+    ) -> torch.Tensor:
         """Samples starting positions from random k trajectories from a random file"""
-        traj_file = random.choice(self.file_sets)[self.master_tn]
-        trajectories = torch.from_numpy(joblib.load(traj_file))
+        if use_preloaded and hasattr(self, 'preloaded'):
+            trajectories = self.preloaded[self.master_tn]
+        else:
+            traj_file = random.choice(self.file_sets)[self.master_tn]
+            trajectories = torch.from_numpy(joblib.load(traj_file))
         assert len(trajectories) >= k
         indices = torch.randperm(len(trajectories))[:k]
         return trajectories[indices, 0].clone().to(device if device is not None else self.device)
 
     def get_random_trajectory_ends(
-        self, k: int, last_n: int = None
+        self, k: int, last_n: int = None, use_preloaded: bool = True
     ) -> Tuple[torch.Tensor, List[str]]:
         """Samples k trajectories, returning flattened terminal states and labels."""
-        file_set = random.choice(self.file_sets)
-        assert 'lengths' in file_set
+        assert 'lengths' in self.tensor_names
 
-        trajectories = torch.from_numpy(joblib.load(file_set[self.master_tn]))
-        lengths = torch.from_numpy(joblib.load(file_set['lengths'])).to(torch.long)
+        if use_preloaded and hasattr(self, 'preloaded'):
+            trajectories = self.preloaded[self.master_tn]
+            lengths = self.preloaded['lengths'].to(torch.long)
+        else:
+            file_set = random.choice(self.file_sets)
+            trajectories = torch.from_numpy(joblib.load(file_set[self.master_tn]))
+            lengths = torch.from_numpy(joblib.load(file_set['lengths'])).to(torch.long)
+
         assert len(trajectories) >= k
-
         indices = torch.randperm(len(trajectories))[:k]
         trajectories, lengths = trajectories[indices], lengths[indices]
 
         points_per_trajectory = trajectories.shape[1] if last_n is None else last_n
-        time_offsets = torch.arange(points_per_trajectory)
+        time_offsets = torch.arange(points_per_trajectory, device=trajectories.device)
         raw_time_idx = lengths.unsqueeze(1) - points_per_trajectory + time_offsets
         valid_mask = raw_time_idx >= 0
 
-        batch_idx = torch.arange(k).unsqueeze(1)
+        batch_idx = torch.arange(k, device=trajectories.device).unsqueeze(1)
         safe_time_idx = raw_time_idx.clamp_min(0)
         ends = trajectories[batch_idx, safe_time_idx][valid_mask].clone().to(self.device)
 
-        traj_idx = torch.arange(k).unsqueeze(1).expand(-1, points_per_trajectory)
-        labels = [f'trajectory_{i}' for i in traj_idx[valid_mask].tolist()]
+        traj_idx = (
+            torch.arange(k, device=trajectories.device)
+            .unsqueeze(1)
+            .expand(-1, points_per_trajectory)
+        )
+        labels = [f'trajectory_{i}' for i in traj_idx[valid_mask].cpu().tolist()]
 
         if self.spec_mgr is not None:
             ends = torch.cat((self.spec_mgr.create_many(1), ends))
@@ -103,6 +120,10 @@ class AbstractContrastiveDataset(IterableDataset):
 
     def _load_file_set(self, file_set: Dict[str, str]) -> Tuple[TensorDict, int]:
         """Loads and trims (for even chunking) tensors, from  paths specified in the dictionary"""
+        if hasattr(self, 'preloaded'):
+            if file_set['_prefix'] == self.preloaded_prefix:
+                return self.preloaded, self.preloaded_batches
+
         master_tensor = torch.from_numpy(joblib.load(file_set[self.master_tn]))
         perm = torch.randperm(len(master_tensor))
         ub = (len(master_tensor) // self.chunk_size) * self.chunk_size
@@ -111,6 +132,18 @@ class AbstractContrastiveDataset(IterableDataset):
         for tn in self.tensor_names:
             data[tn] = torch.from_numpy(joblib.load(file_set[tn]))[perm][:ub]
         return TensorDict(data, batch_size=[ub]).to(self.device), ub // self.chunk_size
+
+    @contextmanager
+    def preload_file_set(self, file_set: str = None) -> Iterator[None]:
+        """Loads and caches a file_set to be used by get_random_* methods"""
+        file_set = file_set if file_set is not None else random.choice(self.file_sets)
+        self.preloaded_prefix = file_set['_prefix']
+        self.preloaded, self.preloaded_batches = self._load_file_set(file_set=file_set)
+        try:
+            yield
+        finally:
+            del self.preloaded
+            self.preloaded_prefix, self.preloaded_batches = None, None
 
     @abstractmethod
     def contrastive_pick(self, **kwargs: torch.Tensor) -> Tuple[TensorDict, TensorDict]:
@@ -125,3 +158,4 @@ class AbstractContrastiveDataset(IterableDataset):
             for i in range(num_batches):
                 lb, ub = i * self.chunk_size, (i + 1) * self.chunk_size
                 yield self.contrastive_pick(**data[lb:ub])
+            del data

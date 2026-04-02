@@ -156,19 +156,20 @@ class MetricsJob:
             return
 
         self.model.eval()
-
         self.save_checkpoint(epoch)
-        self.create_trajectory_gifs(epoch)
-        self.plot_trajectory_embeddings(epoch)
 
-        self.logger.log_metrics(
-            epoch,
-            (
-                {'train_loss': avg_train_loss}
-                | self.measure_valid_loss(epoch)
-                | self.measure_solved_rate(epoch)
-            ),
-        )
+        with self.validset.preload_file_set():
+            self.create_trajectory_gifs(epoch)
+            self.plot_trajectory_embeddings(epoch)
+
+            self.logger.log_metrics(
+                epoch,
+                (
+                    {'train_loss': avg_train_loss}
+                    | self.measure_valid_loss(epoch)
+                    | self.measure_solved_rate(epoch)
+                ),
+            )
 
         self.model.train()
 

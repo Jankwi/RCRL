@@ -135,10 +135,13 @@ class TestAbstractContrastiveFileLoading:
             chunk_size=1,
         )
         assert len(dataset.file_sets) == expected_count
-        expected_keys = set(tensor_names + ['trajectories'])
+        expected_keys = set(tensor_names + ['trajectories', '_prefix'])
         for file_set in dataset.file_sets:
             assert set(file_set.keys()) == expected_keys
-            for path in file_set.values():
+            assert isinstance(file_set['_prefix'], str)
+            for key, path in file_set.items():
+                if key == '_prefix':
+                    continue
                 assert os.path.exists(path)
 
     @pytest.mark.parametrize(

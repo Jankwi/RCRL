@@ -86,6 +86,8 @@ class TrainJob(AbstractJob):
 
     def execute(self) -> None:
         """Trains the model, and logs metrics"""
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         self.model.train()
 
         for epoch in tqdm(range(self.epochs)):
