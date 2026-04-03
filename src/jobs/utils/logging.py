@@ -1,8 +1,9 @@
 import functools
 import os
 import tempfile
+import time
 from abc import abstractmethod
-from typing import Callable, Dict, Set
+from typing import Callable, Dict
 
 import gin
 
@@ -16,15 +17,19 @@ class AbstractLogger:
         default_log_freq: int,
         run_params: dict = None,
         advanced_frequencies: Dict[str, int] = {},
-        skip_first_metrics: Set[str] = set(),
+        skip_metrics: frozenset[str] = frozenset(),
+        skip_first_metrics: frozenset[str] = frozenset(),
     ) -> None:
         self.final_epoch = epochs - 1
         self.default_log_freq = default_log_freq
         self.advanced_frequencies = advanced_frequencies
         self.skip_first_metrics = skip_first_metrics
+        self.skip_metrics = skip_metrics
 
-    def _check_epoch(self, epoch: int, freq: int, skip_first: bool = False) -> bool:
-        if skip_first and epoch == 0:
+    def _check_epoch(
+        self, epoch: int, freq: int, skip: bool = False, skip_first: bool = False
+    ) -> bool:
+        if skip or (skip_first and epoch == 0):
             return False
         return (epoch == 0) or (epoch % freq == 0) or (epoch == self.final_epoch)
 
@@ -33,8 +38,9 @@ class AbstractLogger:
 
     def is_metric_epoch(self, epoch: int, metric: str) -> bool:
         freq = self.advanced_frequencies.get(metric, self.default_log_freq)
+        skip = metric in self.skip_metrics
         skip_first = metric in self.skip_first_metrics
-        return self._check_epoch(epoch, freq, skip_first=skip_first)
+        return self._check_epoch(epoch, freq, skip=skip, skip_first=skip_first)
 
     @abstractmethod
     def log_gifs(self, epoch: int, paths_dict: Dict[str, str]) -> None:
@@ -57,7 +63,7 @@ class AbstractLogger:
         pass
 
 
-def metric_action(name: str) -> Callable[[Callable], Callable]:
+def metric_action(name: str, measure_time: bool = True) -> Callable[[Callable], Callable]:
     """Decorator that gates method execution based on per-metric logging frequency."""
 
     def decorator(fn: Callable) -> Callable:
@@ -65,7 +71,14 @@ def metric_action(name: str) -> Callable[[Callable], Callable]:
         def wrapper(self, epoch: int, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
             if not self.logger.is_metric_epoch(epoch, name):
                 return {}
-            return fn(self, epoch, *args, **kwargs)
+            if measure_time:
+                start_time = time.perf_counter()
+            result = fn(self, epoch, *args, **kwargs)
+            if measure_time:
+                elapsed_time = time.perf_counter() - start_time
+                result = {} if result is None else result
+                result[f'{name}_execution_time_seconds'] = elapsed_time
+            return result
 
         return wrapper
 
@@ -83,12 +96,14 @@ class StdOutLogger(AbstractLogger):
         run_params: dict = {},
         file: str = None,
         advanced_frequencies: Dict[str, int] = {},
-        skip_first_metrics: Set[str] = set(),
+        skip_metrics: frozenset[str] = frozenset(),
+        skip_first_metrics: frozenset[str] = frozenset(),
     ) -> None:
         super().__init__(
             epochs=epochs,
             default_log_freq=default_log_freq,
             advanced_frequencies=advanced_frequencies,
+            skip_metrics=skip_metrics,
             skip_first_metrics=skip_first_metrics,
         )
         self.file = open(file, 'a') if file else None
@@ -132,12 +147,14 @@ class WandbLogger(AbstractLogger):
         default_log_freq: int,
         run_params: dict = {},
         advanced_frequencies: Dict[str, int] = {},
-        skip_first_metrics: Set[str] = set(),
+        skip_metrics: frozenset[str] = frozenset(),
+        skip_first_metrics: frozenset[str] = frozenset(),
     ) -> None:
         super().__init__(
             epochs=epochs,
             default_log_freq=default_log_freq,
             advanced_frequencies=advanced_frequencies,
+            skip_metrics=skip_metrics,
             skip_first_metrics=skip_first_metrics,
         )
         self.wandb_run = wandb.init(
@@ -192,12 +209,14 @@ class BestValOsLogger(AbstractLogger):
         metric_name: str,
         run_params: dict = {},
         advanced_frequencies: Dict[str, int] = {},
-        skip_first_metrics: Set[str] = set(),
+        skip_metrics: frozenset[str] = frozenset(),
+        skip_first_metrics: frozenset[str] = frozenset(),
     ) -> None:
         super().__init__(
             epochs=epochs,
             default_log_freq=default_log_freq,
             advanced_frequencies=advanced_frequencies,
+            skip_metrics=skip_metrics,
             skip_first_metrics=skip_first_metrics,
         )
         self.metric_name = metric_name
@@ -240,12 +259,14 @@ class MultipleLoggers(AbstractLogger):
         wandb: bool = True,
         best_val_os: bool = False,
         advanced_frequencies: Dict[str, int] = {},
-        skip_first_metrics: Set[str] = set(),
+        skip_metrics: frozenset[str] = frozenset(),
+        skip_first_metrics: frozenset[str] = frozenset(),
     ) -> None:
         super().__init__(
             epochs=epochs,
             default_log_freq=default_log_freq,
             advanced_frequencies=advanced_frequencies,
+            skip_metrics=skip_metrics,
             skip_first_metrics=skip_first_metrics,
         )
         self.loggers: AbstractLogger = []
@@ -256,6 +277,7 @@ class MultipleLoggers(AbstractLogger):
                     default_log_freq=default_log_freq,
                     run_params=run_params,
                     advanced_frequencies=advanced_frequencies,
+                    skip_metrics=skip_metrics,
                     skip_first_metrics=skip_first_metrics,
                 )
             )
@@ -266,6 +288,7 @@ class MultipleLoggers(AbstractLogger):
                     default_log_freq=default_log_freq,
                     run_params=run_params,
                     advanced_frequencies=advanced_frequencies,
+                    skip_metrics=skip_metrics,
                     skip_first_metrics=skip_first_metrics,
                 )
             )
@@ -275,6 +298,7 @@ class MultipleLoggers(AbstractLogger):
                     epochs=epochs,
                     default_log_freq=default_log_freq,
                     advanced_frequencies=advanced_frequencies,
+                    skip_metrics=skip_metrics,
                     skip_first_metrics=skip_first_metrics,
                 )
             )

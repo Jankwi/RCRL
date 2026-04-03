@@ -103,7 +103,7 @@ class MetricsJob:
         """Simulates solving attempts (no search) with the current model. Returns the solved rate"""
         return eval_no_search(self.starting.to(self.device), self.env, self.ve)
 
-    @metric_action('state_dict')
+    @metric_action('state_dict', measure_time=False)
     def save_checkpoint(self, epoch: int) -> None:
         """Saves model & optimizer states locally, and then passes them to the logger"""
         dir = self._get_epoch_dir(epoch)
@@ -159,13 +159,12 @@ class MetricsJob:
         self.save_checkpoint(epoch)
 
         with self.validset.preload_file_set():
-            self.create_trajectory_gifs(epoch)
-            self.plot_trajectory_embeddings(epoch)
-
             self.logger.log_metrics(
                 epoch,
                 (
                     {'train_loss': avg_train_loss}
+                    | self.create_trajectory_gifs(epoch)
+                    | self.plot_trajectory_embeddings(epoch)
                     | self.measure_valid_loss(epoch)
                     | self.measure_solved_rate(epoch)
                 ),
