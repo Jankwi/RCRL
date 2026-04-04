@@ -39,7 +39,9 @@ class TestMazeVectorizedStateSet:
 
         wall_layout_tensor = torch.tensor(wall_layout, device=device)
         n_sets, grid_dim = wall_layout_tensor.shape[0], wall_layout_tensor.shape[-1]
-        empty_sets = MazeVectorizedStateSet(n_sets=n_sets, device=device, grid_dim=grid_dim)
+        empty_sets = MazeVectorizedStateSet(
+            n_sets=n_sets, device=device, grid_dim=grid_dim, pos_marker=self.pos_marker
+        )
 
         for i in range(grid_dim):
             for j in range(grid_dim):
@@ -68,7 +70,9 @@ class TestMazeVectorizedStateSet:
 
         states_tensor = torch.tensor(states_list, device=device)
         n_sets, grid_dim = states_tensor.shape[0], states_tensor.shape[-1]
-        sets = MazeVectorizedStateSet(n_sets=n_sets, device=device, grid_dim=grid_dim)
+        sets = MazeVectorizedStateSet(
+            n_sets=n_sets, device=device, grid_dim=grid_dim, pos_marker=self.pos_marker
+        )
 
         idx = torch.tensor([i for i in range(n_sets)], device=device)
         self.add_and_check(sets, states_tensor, idx=idx)
@@ -130,7 +134,9 @@ class TestMazeVectorizedStateSet:
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     def test_sequential_addition(self, n_sets, additions_idxs, checks_idxs_expected, device):
         grid_dim = len(additions_idxs[0][0][0])
-        sets = MazeVectorizedStateSet(n_sets=n_sets, device=device, grid_dim=grid_dim)
+        sets = MazeVectorizedStateSet(
+            n_sets=n_sets, device=device, grid_dim=grid_dim, pos_marker=self.pos_marker
+        )
 
         for addition_list, idx_list in additions_idxs:
             addition, idx = (

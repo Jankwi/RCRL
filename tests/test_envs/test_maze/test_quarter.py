@@ -70,7 +70,9 @@ class TestVectorizedQuarterMaze:
     def build_sets(self, many_states):
         """Builds a maze vectorized state set adding many_states[i] to the i-th one"""
         n, k, grid_dim = many_states.shape[0], many_states.shape[1], many_states.shape[2]
-        sets = MazeVectorizedStateSet(n, grid_dim=grid_dim, device=many_states.device)
+        sets = MazeVectorizedStateSet(
+            n, grid_dim=grid_dim, device=many_states.device, pos_marker=self.pos_marker
+        )
         idx = torch.arange(n, device=many_states.device)
 
         for i in range(k):

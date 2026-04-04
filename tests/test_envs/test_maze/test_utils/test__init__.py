@@ -21,9 +21,11 @@ class TestGetPosIndices:
                 [(1, 1), (2, 2)],
             ),
             # three 2x2 states
+            ([[[0, 1], [0, 0]], [[0, 0], [0, 0]], [[1, 0], [0, 0]]], [(0, 0), (1, 0), (1, 0)]),
+            # two 3x3 states where the pos_marker is not the highest value
             (
-                [[[0, 1], [0, 0]], [[0, 0], [0, 0]], [[1, 0], [0, 0]]],
-                [(0, 0), (1, 0), (1, 0)],
+                [[[0, 0, 7], [0, 0, 0], [9, 0, 1]], [[1, 0, 0], [0, 0, 0], [0, 1, 0]]],
+                [(1, 1), (2, 2)],
             ),
         ],
     )
@@ -39,7 +41,7 @@ class TestGetPosIndices:
             states[i, r, c] = self.pos_marker
 
         expected = torch.tensor(agent_positions, device=device)
-        result = get_pos_indices(states, grid_dim)
+        result = get_pos_indices(states, grid_dim, self.pos_marker)
         assert_close(result, expected)
 
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])

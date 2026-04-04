@@ -29,6 +29,10 @@ class VectorizedQuarterMaze(AbstractVectorizedMaze):
                 'generate_goals() will return all possible states'
             )
 
+    def get_covered_pos(self, states: torch.Tensor) -> torch.Tensor:
+        """Agent moves on empty cells only — nothing to restore."""
+        return torch.zeros(states.shape[0], device=states.device, dtype=states.dtype)
+
     def _get_quarter_pos(self) -> torch.Tensor:
         return generate_border_positions(
             border=int(self.grid_dim / 2), grid_dim=self.grid_dim, device=self.device

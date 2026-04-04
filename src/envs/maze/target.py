@@ -19,11 +19,16 @@ class VectorizedTargetMaze(AbstractVectorizedMaze):
         pos_marker: int = 3,
         spec_mgr: SpecialStateManager = None,
     ) -> None:
-        super().__init__(
-            device=device, grid_dim=grid_dim, target_marker=target_marker, pos_marker=pos_marker
-        )
-
+        super().__init__(device=device, grid_dim=grid_dim, pos_marker=pos_marker)
+        self.target_marker: int = target_marker
         self.spec_mgr = spec_mgr
+
+    def get_covered_pos(self, states: torch.Tensor) -> torch.Tensor:
+        """Returns target_marker for states where the agent is covering it, else 0."""
+        target_visible = torch.any(states == self.target_marker, dim=(-1, -2))
+        result = torch.zeros(states.shape[0], device=states.device, dtype=states.dtype)
+        result[~target_visible] = self.target_marker
+        return result
 
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
         """
