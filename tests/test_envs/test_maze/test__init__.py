@@ -21,7 +21,8 @@ class AbstractVectorizedMazeTestingSubclass(AbstractVectorizedMaze):
 class SevensTestMaze(AbstractVectorizedMaze):
     """
     AbstractVectorizedMaze subclass, where all free positions are filled with 7.
-    The intention of this class is to test how the AbstractVectorizedMaze operates with a non standard get_covered_pos
+    The intention of this class is to test how the AbstractVectorizedMaze operates
+    with a non standard get_covered_pos
     """
 
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:

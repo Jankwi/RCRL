@@ -37,6 +37,12 @@ class AbstractStateStorage(ABC):
 
     def active_states(self) -> torch.Tensor:
         """Returns all the states, for which exploration hasn't yet finished."""
+        # This is important, as is_solved may crash when getting an empty tensor
+        if len(self.active_idx) == 0:
+            return torch.empty(
+                (0, *self.states.shape[1:]), device=self.device, dtype=self.states.dtype
+            )
+
         solved_mask = self.env.is_solved(self.states[self.active_idx], self.goals[self.active_idx])
         self.new_iteration(solved_mask)
 

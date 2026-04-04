@@ -7,6 +7,7 @@ from typing import Dict, Iterator, List, Tuple
 
 import gin
 import joblib
+import numpy as np
 import torch
 from tensordict import TensorDict
 from torch.utils.data import IterableDataset
@@ -34,6 +35,10 @@ class AbstractContrastiveDataset(IterableDataset):
         self.master_tn, self.tensor_names = master_tn, tensor_names
         self.file_sets = self._get_all_file_names(file_sets_path, tensor_names, master_tn)
         self.spec_mgr = spec_mgr
+
+    def _load_tensor(self, file_path: str) -> torch.Tensor:
+        loaded = joblib.load(file_path)
+        return torch.from_numpy(loaded) if isinstance(loaded, np.ndarray) else loaded
 
     def _get_all_file_names(
         self, file_sets_path: str, tensor_names: List[str], master_tn: str
@@ -63,7 +68,7 @@ class AbstractContrastiveDataset(IterableDataset):
             trajectories = self.preloaded[self.master_tn]
         else:
             traj_file = random.choice(self.file_sets)[self.master_tn]
-            trajectories = torch.from_numpy(joblib.load(traj_file))
+            trajectories = self._load_tensor(traj_file)
         assert len(trajectories) >= k
         indices = torch.randperm(len(trajectories))[:k]
         return trajectories[indices, 0].clone().to(device if device is not None else self.device)
@@ -79,8 +84,8 @@ class AbstractContrastiveDataset(IterableDataset):
             lengths = self.preloaded['lengths'].to(torch.long)
         else:
             file_set = random.choice(self.file_sets)
-            trajectories = torch.from_numpy(joblib.load(file_set[self.master_tn]))
-            lengths = torch.from_numpy(joblib.load(file_set['lengths'])).to(torch.long)
+            trajectories = self._load_tensor(file_set[self.master_tn])
+            lengths = self._load_tensor(file_set['lengths']).to(torch.long)
 
         assert len(trajectories) >= k
         indices = torch.randperm(len(trajectories))[:k]
@@ -113,7 +118,7 @@ class AbstractContrastiveDataset(IterableDataset):
         if not hasattr(self, 'batches_per_epoch'):
             self.batches_per_epoch = 0
             for file_set in self.file_sets:
-                master_tensor = torch.from_numpy(joblib.load(file_set[self.master_tn]))
+                master_tensor = self._load_tensor(file_set[self.master_tn])
                 self.batches_per_epoch += len(master_tensor) // self.chunk_size
                 del master_tensor
         return self.batches_per_epoch
@@ -124,13 +129,13 @@ class AbstractContrastiveDataset(IterableDataset):
             if file_set['_prefix'] == self.preloaded_prefix:
                 return self.preloaded, self.preloaded_batches
 
-        master_tensor = torch.from_numpy(joblib.load(file_set[self.master_tn]))
+        master_tensor = self._load_tensor(file_set[self.master_tn])
         perm = torch.randperm(len(master_tensor))
         ub = (len(master_tensor) // self.chunk_size) * self.chunk_size
 
         data = {self.master_tn: master_tensor[perm][:ub]}
         for tn in self.tensor_names:
-            data[tn] = torch.from_numpy(joblib.load(file_set[tn]))[perm][:ub]
+            data[tn] = self._load_tensor(file_set[tn])[perm][:ub]
         return TensorDict(data, batch_size=[ub]).to(self.device), ub // self.chunk_size
 
     @contextmanager

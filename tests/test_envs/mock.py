@@ -35,6 +35,7 @@ class MockVectorizedEnvironment(VectorizedEnvironment):
         return states, legality
 
     def is_solved(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
+        assert len(states) > 0
         return states[:, 1] == goals
 
     def render_state(self, state) -> None:

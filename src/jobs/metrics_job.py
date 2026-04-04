@@ -14,6 +14,7 @@ from src.contrastivelib.metrics.sims import SimilarityMeasure
 from src.contrastivelib.utils.special import SpecialStateManager
 from src.envs import ValueEstimator, VectorizedEnvironment
 from src.envs.explore import eval_no_search
+from src.envs.maze.colorful import VectorizedColorfulMaze
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.envs.visual import get_embed_plots, get_trajectory_gifs

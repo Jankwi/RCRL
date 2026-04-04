@@ -1,10 +1,14 @@
 import pytest
 import torch
+from torch.testing import assert_close
 
 from src.contrastivelib.utils import fix_seed
 from src.envs.explore import eval_no_search
 from src.envs.storage import DeepStateStorage
-from tests.test_envs.mock import MockValueEstimator, MockVectorizedEnvironment
+from tests.test_envs.mock import (
+    MockValueEstimator,
+    MockVectorizedEnvironment,
+)
 
 
 def _solvable_states(n: int, max_idx: int, device: torch.device) -> torch.Tensor:
@@ -188,7 +192,7 @@ class TestEvalNoSearchDeep:
         assert metrics['solved_rate'] == pytest.approx(num_solved / total)
         torch.testing.assert_close(tensors['trajectories'], expected_traj)
         torch.testing.assert_close(tensors['lengths'], expected_lengths)
-        assert (tensors['outcome'] == expected_outcome).all()
+        assert_close(tensors['outcome'], expected_outcome)
 
     @pytest.mark.parametrize(
         'num_unsolved, num_solved, num_overflow',
@@ -244,3 +248,29 @@ class TestEvalNoSearchDeep:
         torch.testing.assert_close(tensors['trajectories'], expected_traj)
         torch.testing.assert_close(tensors['lengths'], expected_lengths)
         assert (tensors['outcome'] == expected_outcome).all()
+
+    @pytest.mark.parametrize(
+        'device',
+        [
+            'cpu',
+            pytest.param(
+                'cuda',
+                marks=pytest.mark.skipif(
+                    not torch.cuda.is_available(), reason='CUDA not available'
+                ),
+            ),
+        ],
+    )
+    def test_eval_no_search_one_unsolvable(self, device):
+        max_len = 32
+        device = torch.device(device)
+        env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device)
+        ve = MockValueEstimator(device=device)
+
+        states = torch.tensor([[0, self.max_idx - 5]], device=device)
+        tensors, metrics = eval_no_search(
+            states, env, ve, storage_class=DeepStateStorage, max_len={'max_len': max_len}
+        )
+
+        assert metrics['solved_rate'] == 0.0
+        assert_close(tensors['outcome'], torch.tensor([False], device=device))
