@@ -73,5 +73,4 @@ class TestVectorizedTargetMaze:
         goals = env.generate_goals(states)
         new_states, legality = env.preview_action(states, action_no=action)
         solved = env.is_solved(new_states, goals)
-        print(f'{solved.shape=} {solved.dtype=} {solved=}')
         assert_close(solved, expected_solved)

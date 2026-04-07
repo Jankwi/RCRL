@@ -9,8 +9,9 @@ from envs.state_sets import AbstractVectorizedStateSet, SlowVectorizedStateSet
 
 
 class VectorizedEnvironment(ABC):
-    def __init__(self, action_space_size: int) -> None:
-        self.action_space_size = action_space_size
+    def __init__(self, action_tensor: torch.Tensor) -> None:
+        self.action_tensor = action_tensor
+        self.action_space_size = len(self.action_tensor)
 
     """Abstract class, detailing the interface that a vectorized environment should have"""
 
@@ -18,11 +19,27 @@ class VectorizedEnvironment(ABC):
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
         pass
 
+    def preview_all_actions(self, states: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Returns a (result, legality) tuple for all actions on the given states - doesn't corrupt the original states."""
+        n, k = states.shape[0], self.action_space_size
+        st_shape, act_shape = states.shape[1:], self.action_tensor.shape[1:]
+        expanded_states = states.repeat_interleave(k, dim=0)
+        action_tensors = self.action_tensor.repeat(n, *([1] * len(act_shape)))
+        new_states, legality = self.preview_actions(expanded_states, action_tensors)
+        return new_states.reshape(n, k, *st_shape), legality.reshape(n, k)
+
     @abstractmethod
+    def preview_actions(
+        self, states: torch.Tensor, action_tensors: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """For each state action pair, returns a (result, legality) tuple - may corrupt the original states"""
+        pass
+
     def preview_action(
         self, states: torch.Tensor, action_no: int
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        pass
+        action_tensors = self.action_tensor[action_no].clone().unsqueeze(0).expand(len(states), -1)
+        return self.preview_actions(states, action_tensors)
 
     @abstractmethod
     def is_solved(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:

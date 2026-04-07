@@ -20,17 +20,17 @@ class MockVectorizedEnvironment(VectorizedEnvironment):
     """
 
     def __init__(self, max_idx: int, device: torch.device) -> None:
-        super().__init__(2)
+        super().__init__(torch.tensor([[0, 1], [0, 2]], device=device))
         self.device = device
         self.max_idx_tensor = torch.tensor(max_idx, device=self.device)
 
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
         return states[:, 0].clone()
 
-    def preview_action(
-        self, states: torch.Tensor, action_no: int
+    def preview_actions(
+        self, states: torch.Tensor, action_tensors: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        states[:, 1] += torch.tensor([action_no + 1], device=self.device)
+        states += action_tensors
         legality = states[:, 1] <= self.max_idx_tensor
         return states, legality
 

@@ -3,6 +3,7 @@ import torch
 from torch.testing import assert_close
 
 from src.envs.maze import AbstractVectorizedMaze
+from src.envs.maze.utils import get_pos_indices
 
 
 class AbstractVectorizedMazeTestingSubclass(AbstractVectorizedMaze):
@@ -105,9 +106,36 @@ class TestAbstractVectorizedMazePositions:
         if expected_legal_t.any():
             assert_close(new_states[expected_legal_t], expected_legal_states_t)
 
-    # usual parametrizations
+    @pytest.mark.parametrize(
+        'states_data, action_no, expected_legal',
+        [
+            # 3x3 all-sevens, agent at centre (1,1), move right → legal
+            ([[[7, 7, 7], [7, 3, 7], [7, 7, 7]]], 1, [True]),
+            # 3x3 all-sevens, agent at left edge (1,0), move left → boundary clamp → illegal
+            ([[[7, 7, 7], [3, 7, 7], [7, 7, 7]]], 3, [False]),
+        ],
+    )
     def test_preview_action_on_covered_positions(
-        self,
+        self, states_data, action_no, expected_legal, device_fx
     ):
         """Tests the preview_action method on the SevensTestMaze env"""
-        # Claude: TODO
+        grid_dim = len(states_data[0])
+        env = SevensTestMaze(device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker)
+        states = torch.tensor(states_data, device=device_fx)
+        old_positions = get_pos_indices(states, grid_dim, self.pos_marker)
+
+        new_states, legal_move = env.preview_action(states.clone(), action_no)
+
+        assert_close(legal_move, torch.tensor(expected_legal, device=device_fx))
+        if legal_move.any():
+            legal_old_pos = old_positions[legal_move]
+            legal_new_pos = torch.clamp(
+                legal_old_pos + env.action_tensor[action_no],
+                min=0,
+                max=grid_dim - 1,
+            )
+            expected_legal_new = states[legal_move].clone()
+            b = torch.arange(legal_move.sum(), device=device_fx)
+            expected_legal_new[b, legal_old_pos[:, 0], legal_old_pos[:, 1]] = 7
+            expected_legal_new[b, legal_new_pos[:, 0], legal_new_pos[:, 1]] = self.pos_marker
+            assert_close(new_states[legal_move], expected_legal_new)
