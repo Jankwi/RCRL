@@ -4,13 +4,13 @@ import pytest
 import torch
 from torch.testing import assert_close
 
+from src.common import fix_seed
 from src.contrastivelib.metrics.sims import (
     DotProductSimilarityMeasure,
     L1SimilarityMeasure,
     L2SimilarityMeasure,
     L2SquaredSimilarityMeasure,
 )
-from src.contrastivelib.utils import fix_seed
 
 
 @pytest.fixture(params=['cpu', 'cuda'])

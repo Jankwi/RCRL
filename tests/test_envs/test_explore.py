@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch.testing import assert_close
 
-from src.contrastivelib.utils import fix_seed
+from src.common import fix_seed
 from src.envs.explore import eval_no_search
 from src.envs.storage import DeepStateStorage
 from tests.test_envs.mock import (

@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch.testing import assert_close
 
-from src.contrastivelib.utils import fix_seed
+from src.common import fix_seed
 from src.envs.storage import DeepStateStorage, ShallowStateStorage
 from tests.test_envs.mock import MockVectorizedEnvironment
 
@@ -19,6 +19,7 @@ class TestStateStoragesBasic:
         self.max_idx = 20
         self.num_games = 5
         self.seed = 42
+        fix_seed(self.seed)
 
     @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     def test_all_active_after_init(self, storage_class, device):
@@ -26,7 +27,6 @@ class TestStateStoragesBasic:
         if device == 'cuda' and not torch.cuda.is_available():
             pytest.skip('CUDA not available')
 
-        fix_seed(self.seed)
         env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device)
 
         # Goals (col 0) = random in [1, max_idx], (col 1) = 0 -- no state is solved
@@ -46,7 +46,6 @@ class TestStateStoragesBasic:
         if device == 'cuda' and not torch.cuda.is_available():
             pytest.skip('CUDA not available')
 
-        fix_seed(self.seed)
         env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device)
 
         # Solved games: goal=0, position=0 → immediately solved

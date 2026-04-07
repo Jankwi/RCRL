@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch.testing import assert_close
 
-from src.contrastivelib.utils import fix_seed
+from src.common import fix_seed
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.state_sets import MazeVectorizedStateSet
 

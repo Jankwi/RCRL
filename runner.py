@@ -3,7 +3,7 @@ from typing import Dict, Type
 
 import gin
 
-from src.contrastivelib.utils import fix_seed
+from src.common import fix_seed
 from src.jobs import AbstractJob
 from src.jobs.train_job import *  # noqa: F403
 

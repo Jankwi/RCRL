@@ -7,8 +7,8 @@ import torch
 from tensordict import TensorDict
 from torch.testing import assert_close
 
+from src.common import fix_seed
 from src.contrastivelib.datasets.abstract_contrastive import AbstractContrastiveDataset
-from src.contrastivelib.utils import fix_seed
 from src.contrastivelib.utils.special import SpecialStateManager
 
 
@@ -31,6 +31,7 @@ class TestAbstractContrastiveFileLoading:
 
     def setup_method(self, method):
         self.seed = 42
+        fix_seed(self.seed)
 
         # traj_len: 2D states (2x2 maze grids), two file sets (big + small)
         # Designed so that numbers of 1's in each trajectory are unique: big0=2, big1=3, small0=4
@@ -157,7 +158,6 @@ class TestAbstractContrastiveFileLoading:
         if device == 'cuda' and not torch.cuda.is_available():
             pytest.skip('CUDA not available')
 
-        fix_seed(self.seed)
         dataset = _PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=[],
@@ -186,8 +186,6 @@ class TestAbstractContrastiveFileLoading:
         self, data_dirs, file_path, with_spec_mgr, last_n, chunk_size, device
     ):
         """Test the get_random_trajectory_ends method - for now just on whole trajectories"""
-        fix_seed(self.seed)
-
         assert file_path == 'traj_len_abs'
         trajectories, lengths = (
             torch.from_numpy(self.abs_trajectories).to(device),
@@ -234,7 +232,6 @@ class TestAbstractContrastiveFileLoading:
     @pytest.mark.parametrize('chunk_size', [1, 2])
     def test_get_batches_per_epoch(self, data_dirs, file_path, tensor_names, chunk_size):
         """Tests if the get_batches_per_epoch() method is true to it's name"""
-        fix_seed(self.seed)
         dataset = _PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=tensor_names,
@@ -254,7 +251,6 @@ class TestAbstractContrastiveFileLoading:
     )
     def test_iter_count(self, data_dirs, file_path, tensor_names, chunk_size, expected_iterations):
         """Tests that the dataset yields the correct number of batches."""
-        fix_seed(self.seed)
         dataset = _PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=tensor_names,
@@ -272,7 +268,6 @@ class TestAbstractContrastiveFileLoading:
     )
     def test_iter_results(self, data_dirs, device, file_path, tensor_names, chunk_size):
         """Tests that concatenated iteration output matches the original source data."""
-        fix_seed(self.seed)
         dataset = _PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=tensor_names,

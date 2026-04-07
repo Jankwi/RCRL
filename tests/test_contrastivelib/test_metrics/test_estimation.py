@@ -5,9 +5,9 @@ import torch
 import torch.nn as nn
 from torch.testing import assert_close
 
+from src.common import fix_seed
 from src.contrastivelib.metrics.estimation import ManyGoalsValueEstimator, SingleGoalValueEstimator
 from src.contrastivelib.metrics.sims import get_similarity_measure
-from src.contrastivelib.utils import fix_seed
 from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
 
 

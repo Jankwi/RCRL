@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch.testing import assert_close
 
-from src.contrastivelib.utils import fix_seed
+from src.common import fix_seed
 from src.envs.maze.target import VectorizedTargetMaze
 
 
