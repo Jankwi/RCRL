@@ -13,14 +13,6 @@ from src.contrastivelib.metrics.sims import (
 )
 
 
-@pytest.fixture(params=['cpu', 'cuda'])
-def device(request):
-    """Provides available compute devices, skipping CUDA if unavailable."""
-    if request.param == 'cuda' and not torch.cuda.is_available():
-        pytest.skip('CUDA not available')
-    return torch.device(request.param)
-
-
 @pytest.fixture(params=[1, 3, 10])
 def latent_dim(request):
     """Provides latent dimension sizes for cross-similarity tests."""
@@ -40,15 +32,15 @@ def normalize(request):
 
 
 @pytest.fixture
-def cross_sim_data(device, cross_dims, latent_dim, normalize):
+def cross_sim_data(device_fx, cross_dims, latent_dim, normalize):
     """Provides deterministic tensors and a build_expected callable for cross-similarity tests."""
     torch.manual_seed(42)
     len_a, len_b = cross_dims
-    a = torch.rand((len_a, latent_dim), device=device)
-    b = torch.rand((len_b, latent_dim), device=device)
+    a = torch.rand((len_a, latent_dim), device=device_fx)
+    b = torch.rand((len_b, latent_dim), device=device_fx)
 
     def build_expected(sim_fn):
-        expected = torch.zeros((len_a, len_b), device=device)
+        expected = torch.zeros((len_a, len_b), device=device_fx)
         for i in range(len_a):
             for j in range(len_b):
                 expected[i][j] = sim_fn(a[i].unsqueeze(0), b[j].unsqueeze(0), 'elementwise').item()
@@ -83,12 +75,10 @@ class TestL2SimilarityMeasure:
             ),
         ],
     )
-    @pytest.mark.parametrize('device', ['cuda', 'cpu'])
-    def test_l2_elementwise_similarity(self, a, b, normalize, expected, device):
-        device = torch.device(device)
-        a = torch.tensor(a, device=device)
-        b = torch.tensor(b, device=device)
-        expected = torch.tensor(expected, device=device)
+    def test_l2_elementwise_similarity(self, a, b, normalize, expected, device_fx):
+        a = torch.tensor(a, device=device_fx)
+        b = torch.tensor(b, device=device_fx)
+        expected = torch.tensor(expected, device=device_fx)
 
         sim_fn = L2SimilarityMeasure(normalize)
         assert_close(sim_fn(a, b, 'elementwise'), expected)
@@ -128,12 +118,10 @@ class TestDotProductSImilarityMeasure:
             ),
         ],
     )
-    @pytest.mark.parametrize('device', ['cuda', 'cpu'])
-    def test_dot_product_elementwise_similarity(self, a, b, normalize, expected, device):
-        device = torch.device(device)
-        a = torch.tensor(a, device=device)
-        b = torch.tensor(b, device=device)
-        expected = torch.tensor(expected, device=device)
+    def test_dot_product_elementwise_similarity(self, a, b, normalize, expected, device_fx):
+        a = torch.tensor(a, device=device_fx)
+        b = torch.tensor(b, device=device_fx)
+        expected = torch.tensor(expected, device=device_fx)
 
         sim_fn = DotProductSimilarityMeasure(normalize)
         assert_close(sim_fn(a, b, 'elementwise'), expected)
@@ -166,15 +154,11 @@ class TestL1SimilarityMeasure:
             ([[2.0, 2.0], [0.0, 3.0]], [[1.0, 0.0], [3.0, 0.0]], True, [1.0, 2.0]),
         ],
     )
-    @pytest.mark.parametrize('device', ['cuda', 'cpu'])
-    def test_l1_elementwise_similarity(self, a, b, normalize, expected, device):
+    def test_l1_elementwise_similarity(self, a, b, normalize, expected, device_fx):
         """Verifies elementwise L1 similarity against hand-crafted expected values."""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-        device = torch.device(device)
-        a = torch.tensor(a, device=device)
-        b = torch.tensor(b, device=device)
-        expected = torch.tensor(expected, device=device)
+        a = torch.tensor(a, device=device_fx)
+        b = torch.tensor(b, device=device_fx)
+        expected = torch.tensor(expected, device=device_fx)
 
         sim_fn = L1SimilarityMeasure(normalize)
         assert_close(sim_fn(a, b, 'elementwise'), expected)
@@ -212,15 +196,11 @@ class TestL2SquaredSimilarityMeasure:
             ),
         ],
     )
-    @pytest.mark.parametrize('device', ['cuda', 'cpu'])
-    def test_l2_squared_elementwise_similarity(self, a, b, normalize, expected, device):
+    def test_l2_squared_elementwise_similarity(self, a, b, normalize, expected, device_fx):
         """Verifies elementwise squared L2 similarity against hand-crafted expected values."""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-        device = torch.device(device)
-        a = torch.tensor(a, device=device)
-        b = torch.tensor(b, device=device)
-        expected = torch.tensor(expected, device=device)
+        a = torch.tensor(a, device=device_fx)
+        b = torch.tensor(b, device=device_fx)
+        expected = torch.tensor(expected, device=device_fx)
 
         sim_fn = L2SquaredSimilarityMeasure(normalize)
         assert_close(sim_fn(a, b, 'elementwise'), expected)

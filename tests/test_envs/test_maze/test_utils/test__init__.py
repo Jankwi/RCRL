@@ -29,27 +29,19 @@ class TestGetPosIndices:
             ),
         ],
     )
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_get_pos_indices(self, wall_layout, agent_positions, device):
+    def test_get_pos_indices(self, wall_layout, agent_positions, device_fx):
         """Tests the get_pos_indices method on sample board states"""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
         grid_dim = len(wall_layout[0])
-        states = torch.tensor(wall_layout, device=device)
+        states = torch.tensor(wall_layout, device=device_fx)
         for i, (r, c) in enumerate(agent_positions):
             states[i, r, c] = self.pos_marker
 
-        expected = torch.tensor(agent_positions, device=device)
+        expected = torch.tensor(agent_positions, device=device_fx)
         result = get_pos_indices(states, grid_dim, self.pos_marker)
         assert_close(result, expected)
 
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_generate_border_positions(self, device):
+    def test_generate_border_positions(self, device_fx):
         """Tests the generate_border_positions method on sample board states"""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
         expected = torch.tensor(
             [
                 [
@@ -88,6 +80,6 @@ class TestGetPosIndices:
                     [0, 0, 0, 0, 0],
                 ],
             ],
-            device=device,
+            device=device_fx,
         ).to(torch.bool)
-        assert_close(generate_border_positions(border=3, grid_dim=5, device=device), expected)
+        assert_close(generate_border_positions(border=3, grid_dim=5, device=device_fx), expected)

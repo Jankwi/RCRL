@@ -14,7 +14,6 @@ class TestSpecialStateManager:
         self.seed = 42
         torch.manual_seed(self.seed)
 
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     @pytest.mark.parametrize('val', [-1, -2])
     @pytest.mark.parametrize(
         'shape,n_states,special_pos',
@@ -25,24 +24,21 @@ class TestSpecialStateManager:
             ((5,), 2, []),
         ],
     )
-    def test_detect_special_states(self, val, shape, n_states, special_pos, device):
+    def test_detect_special_states(self, val, shape, n_states, special_pos, device_fx):
         """Tests SpecialStateManager's detect_special_states method"""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-        expected_mask = torch.zeros(n_states, dtype=torch.bool, device=device)
+        expected_mask = torch.zeros(n_states, dtype=torch.bool, device=device_fx)
         expected_mask[special_pos] = True
 
-        states = torch.rand(n_states, *shape, device=device) + 1.0
+        states = torch.rand(n_states, *shape, device=device_fx) + 1.0
         for pos in special_pos:
             states[pos] = val
 
         # Initialize manager and test
-        spec_mgr = SpecialStateManager(val=val, device=device, shape=shape)
+        spec_mgr = SpecialStateManager(val=val, device=device_fx, shape=shape)
         result_mask = spec_mgr.detect_special_states(states)
 
         assert_close(result_mask, expected_mask)
 
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     @pytest.mark.parametrize('val', [-1, -2])
     @pytest.mark.parametrize(
         'shape,n_states',
@@ -53,17 +49,14 @@ class TestSpecialStateManager:
             ((5,), 2),
         ],
     )
-    def test_create_many(self, val, shape, n_states, device):
+    def test_create_many(self, val, shape, n_states, device_fx):
         """Tests SpecialStateManager's create_many method"""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
         # Create expected result BEFORE calling the function
         expected_shape = (n_states, *shape)
-        expected_tensor = torch.full(expected_shape, val, device=device)
+        expected_tensor = torch.full(expected_shape, val, device=device_fx)
 
         # Initialize manager and create states
-        spec_mgr = SpecialStateManager(val=val, device=device, shape=shape)
+        spec_mgr = SpecialStateManager(val=val, device=device_fx, shape=shape)
         result = spec_mgr.create_many(n_states)
 
         # Verify shape
@@ -100,7 +93,6 @@ class TestSpecialStateModelWrapper:
             optimizer.step()
         optimizer.zero_grad()
 
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     @pytest.mark.parametrize(
         'shape,train_sz,test_sz,spec_train_pos,spec_test_pos',
         [
@@ -109,23 +101,22 @@ class TestSpecialStateModelWrapper:
         ],
     )
     @pytest.mark.slow
-    def test_wrapped_model(self, shape, train_sz, test_sz, spec_train_pos, spec_test_pos, device):
+    def test_wrapped_model(
+        self, shape, train_sz, test_sz, spec_train_pos, spec_test_pos, device_fx
+    ):
         """Tests SpecialStateModelWrapper's forward pass with special states"""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
-        spec_mgr = SpecialStateManager(val=self.val, shape=shape, device=device)
+        spec_mgr = SpecialStateManager(val=self.val, shape=shape, device=device_fx)
         data_dim, embed_dim = shape[0] * shape[1], shape[0]
         base_model = nn.Sequential(
             nn.Flatten(),
             nn.Linear(data_dim, embed_dim),
-        ).to(device)
-        model = SpecialStateModelWrapper(base_model, spec_mgr, embed_dim).to(device)
+        ).to(device_fx)
+        model = SpecialStateModelWrapper(base_model, spec_mgr, embed_dim).to(device_fx)
 
-        train_X = torch.rand(train_sz, *shape, device=device)
-        test_X = torch.rand(test_sz, *shape, device=device)
-        magic_embed = torch.randn(embed_dim, device=device)
-        transform_matrix = torch.randn(data_dim, embed_dim, device=device)
+        train_X = torch.rand(train_sz, *shape, device=device_fx)
+        test_X = torch.rand(test_sz, *shape, device=device_fx)
+        magic_embed = torch.randn(embed_dim, device=device_fx)
+        transform_matrix = torch.randn(data_dim, embed_dim, device=device_fx)
         with torch.no_grad():
             train_y = train_X.flatten(1) @ transform_matrix
             test_y = test_X.flatten(1) @ transform_matrix
@@ -142,33 +133,29 @@ class TestSpecialStateModelWrapper:
             test_y_hat = model(test_X)
             assert_close(test_y_hat, test_y, atol=self.atol, rtol=0.0)
 
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     @pytest.mark.parametrize('embed_dim', [4, 8])
     @pytest.mark.parametrize('data_dim', [10])
     @pytest.mark.parametrize('batch_size', [5])
     @pytest.mark.parametrize('special_pos', [[], [1, 3], [0, 2, 4]])
-    def test_non_trainable(self, device, embed_dim, data_dim, batch_size, special_pos):
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
+    def test_non_trainable(self, device_fx, embed_dim, data_dim, batch_size, special_pos):
         shape = (data_dim,)
-        states = torch.rand(batch_size, *shape, device=device)
+        states = torch.rand(batch_size, *shape, device=device_fx)
         for pos in special_pos:
             states[pos] = self.val
 
         base_model = nn.Sequential(
             nn.Flatten(),
             nn.Linear(data_dim, embed_dim),
-        ).to(device)
+        ).to(device_fx)
 
         expected = base_model(states)
         for pos in special_pos:
             expected[pos] = 0.0
 
-        spec_mgr = SpecialStateManager(val=self.val, shape=shape, device=device)
+        spec_mgr = SpecialStateManager(val=self.val, shape=shape, device=device_fx)
         model = SpecialStateModelWrapper(
             base_model, spec_mgr, embed_dim, trainable_special=False
-        ).to(device)
+        ).to(device_fx)
 
         result = model(states)
         assert_close(result, expected)

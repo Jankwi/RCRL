@@ -31,16 +31,12 @@ class TestMazeVectorizedStateSet:
             [[[1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 0, 0], [0, 0, 0, 1]]],  # (1x) 4x4
         ],
     )
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_get_empty_set(self, wall_layout, device):
+    def test_get_empty_set(self, wall_layout, device_fx):
         """Verify get_empty_sets returns a set, from which every legal position is missing"""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
-        wall_layout_tensor = torch.tensor(wall_layout, device=device)
+        wall_layout_tensor = torch.tensor(wall_layout, device=device_fx)
         n_sets, grid_dim = wall_layout_tensor.shape[0], wall_layout_tensor.shape[-1]
         empty_sets = MazeVectorizedStateSet(
-            n_sets=n_sets, device=device, grid_dim=grid_dim, pos_marker=self.pos_marker
+            n_sets=n_sets, device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker
         )
 
         for i in range(grid_dim):
@@ -62,19 +58,15 @@ class TestMazeVectorizedStateSet:
             [[[0, 1, 1, 0], [0, 1, 3, 0], [0, 0, 0, 0], [1, 1, 0, 1]]],  # (1x) 4x4
         ],
     )
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_add_to_sets_basic(self, states_list, device):
+    def test_add_to_sets_basic(self, states_list, device_fx):
         """Verify add_to_sets marks positions correctly"""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
-        states_tensor = torch.tensor(states_list, device=device)
+        states_tensor = torch.tensor(states_list, device=device_fx)
         n_sets, grid_dim = states_tensor.shape[0], states_tensor.shape[-1]
         sets = MazeVectorizedStateSet(
-            n_sets=n_sets, device=device, grid_dim=grid_dim, pos_marker=self.pos_marker
+            n_sets=n_sets, device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker
         )
 
-        idx = torch.tensor([i for i in range(n_sets)], device=device)
+        idx = torch.tensor([i for i in range(n_sets)], device=device_fx)
         self.add_and_check(sets, states_tensor, idx=idx)
 
     @pytest.mark.parametrize(
@@ -131,17 +123,16 @@ class TestMazeVectorizedStateSet:
             ]
         ),
     )
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_sequential_addition(self, n_sets, additions_idxs, checks_idxs_expected, device):
+    def test_sequential_addition(self, n_sets, additions_idxs, checks_idxs_expected, device_fx):
         grid_dim = len(additions_idxs[0][0][0])
         sets = MazeVectorizedStateSet(
-            n_sets=n_sets, device=device, grid_dim=grid_dim, pos_marker=self.pos_marker
+            n_sets=n_sets, device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker
         )
 
         for addition_list, idx_list in additions_idxs:
             addition, idx = (
-                torch.tensor(addition_list, device=device),
-                torch.tensor(idx_list, device=device),
+                torch.tensor(addition_list, device=device_fx),
+                torch.tensor(idx_list, device=device_fx),
             )
             self.add_and_check(sets=sets, states=addition, idx=idx)
 
@@ -149,6 +140,6 @@ class TestMazeVectorizedStateSet:
             (
                 check,
                 idx,
-            ) = torch.tensor(check_list, device=device), torch.tensor(idx_list, device=device)
-            expected = torch.tensor(expected_list, device=device)
+            ) = torch.tensor(check_list, device=device_fx), torch.tensor(idx_list, device=device_fx)
+            expected = torch.tensor(expected_list, device=device_fx)
             assert_close(expected, sets.missing_from_sets(check, idx))

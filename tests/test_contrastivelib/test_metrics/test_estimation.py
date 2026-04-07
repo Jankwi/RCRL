@@ -32,21 +32,17 @@ class TestSingleGoalValueEstimator:
 
     @pytest.mark.parametrize('state_shape', [(3,), (8, 8), (2, 2, 2)])
     @pytest.mark.parametrize('n', [1, 3])
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_get_solved_distance(self, n, state_shape, device):
+    def test_get_solved_distance(self, n, state_shape, device_fx):
         """Tests that get_solved_distance returns per-sample Manhattan distances."""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
-        states = torch.randint(0, 10, (n, *state_shape), device=device)
-        goals = torch.randint(0, 10, (n, *state_shape), device=device)
+        states = torch.randint(0, 10, (n, *state_shape), device=device_fx)
+        goals = torch.randint(0, 10, (n, *state_shape), device=device_fx)
 
         expected = torch.sum(
             torch.abs(states.reshape(n, -1).float() - goals.reshape(n, -1).float()),
             dim=-1,
         )
 
-        ve = SingleGoalValueEstimator(FlattenModule().to(device), self.sim_fn, device=device)
+        ve = SingleGoalValueEstimator(FlattenModule().to(device_fx), self.sim_fn, device=device_fx)
         assert_close(ve.get_solved_distance(states, goals), expected)
 
 
@@ -61,14 +57,10 @@ class TestManyGoalsValueEstimator:
     @pytest.mark.parametrize('state_shape', [(3,), (8, 8), (2, 2, 2)])
     @pytest.mark.parametrize('k', [1, 4])
     @pytest.mark.parametrize('n', [1, 3])
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_get_solved_distance(self, n, k, state_shape, device):
+    def test_get_solved_distance(self, n, k, state_shape, device_fx):
         """Tests that get_solved_distance returns the min Manhattan dist over k goals per sample."""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
-        states = torch.randint(0, 10, (n, *state_shape), device=device)
-        goals = torch.randint(0, 10, (n, k, *state_shape), device=device)
+        states = torch.randint(0, 10, (n, *state_shape), device=device_fx)
+        goals = torch.randint(0, 10, (n, k, *state_shape), device=device_fx)
 
         dists = torch.sum(
             torch.abs(states.reshape(n, -1).float().unsqueeze(1) - goals.reshape(n, k, -1).float()),
@@ -76,7 +68,7 @@ class TestManyGoalsValueEstimator:
         )
         expected = torch.min(dists, dim=1).values
 
-        ve = ManyGoalsValueEstimator(FlattenModule().to(device), self.sim_fn, device=device)
+        ve = ManyGoalsValueEstimator(FlattenModule().to(device_fx), self.sim_fn, device=device_fx)
         assert_close(ve.get_solved_distance(states, goals), expected)
 
 
@@ -101,44 +93,36 @@ class TestSingleGoalValueEstimatorWithSpecMgr:
 
     @pytest.mark.parametrize('state_shape', [(3,), (8, 8), (2, 2, 2)])
     @pytest.mark.parametrize('n', [1, 3])
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_with_special_goals(self, n, state_shape, device):
+    def test_with_special_goals(self, n, state_shape, device_fx):
         """All goals are the special state (as from spec_mgr.create_many)."""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
         ve = _make_spec_ve(
             SingleGoalValueEstimator,
             state_shape,
             self.embed_dim,
             self.special_val,
             self.sim_fn,
-            device,
+            device_fx,
         )
-        states = torch.randint(0, 10, (n, *state_shape), device=device).float()
-        goals = torch.full((n, *state_shape), self.special_val, device=device).float()
+        states = torch.randint(0, 10, (n, *state_shape), device=device_fx).float()
+        goals = torch.full((n, *state_shape), self.special_val, device=device_fx).float()
 
         result = ve.get_solved_distance(states, goals)
         assert result.shape == (n,)
 
     @pytest.mark.parametrize('state_shape', [(3,), (8, 8)])
     @pytest.mark.parametrize('n', [1, 3])
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_with_mixed_special_and_normal(self, n, state_shape, device):
+    def test_with_mixed_special_and_normal(self, n, state_shape, device_fx):
         """Some states are special, some are normal."""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
         ve = _make_spec_ve(
             SingleGoalValueEstimator,
             state_shape,
             self.embed_dim,
             self.special_val,
             self.sim_fn,
-            device,
+            device_fx,
         )
-        states = torch.randint(0, 10, (n, *state_shape), device=device).float()
-        goals = torch.randint(0, 10, (n, *state_shape), device=device).float()
+        states = torch.randint(0, 10, (n, *state_shape), device=device_fx).float()
+        goals = torch.randint(0, 10, (n, *state_shape), device=device_fx).float()
         if n > 1:
             states[0] = self.special_val  # first state is special
 
@@ -163,22 +147,18 @@ class TestManyGoalsValueEstimatorWithSpecMgr:
 
     @pytest.mark.parametrize('state_shape', [(3,), (8, 8), (2, 2, 2)])
     @pytest.mark.parametrize('n', [1, 3])
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_single_goal_per_state(self, n, state_shape, device):
+    def test_single_goal_per_state(self, n, state_shape, device_fx):
         """Goals without k dim (as from spec_mgr.create_many) should not crash."""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
         ve = _make_spec_ve(
             ManyGoalsValueEstimator,
             state_shape,
             self.embed_dim,
             self.special_val,
             self.sim_fn,
-            device,
+            device_fx,
         )
-        states = torch.randint(0, 10, (n, *state_shape), device=device).float()
-        goals = torch.full((n, *state_shape), self.special_val, device=device).float()
+        states = torch.randint(0, 10, (n, *state_shape), device=device_fx).float()
+        goals = torch.full((n, *state_shape), self.special_val, device=device_fx).float()
 
         result = ve.get_solved_distance(states, goals)
         assert result.shape == (n,)
@@ -186,22 +166,18 @@ class TestManyGoalsValueEstimatorWithSpecMgr:
     @pytest.mark.parametrize('state_shape', [(3,), (8, 8)])
     @pytest.mark.parametrize('k', [1, 4])
     @pytest.mark.parametrize('n', [1, 3])
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-    def test_many_goals_with_special_states(self, n, k, state_shape, device):
+    def test_many_goals_with_special_states(self, n, k, state_shape, device_fx):
         """Goals with k dim where some goals are special should work correctly."""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
         ve = _make_spec_ve(
             ManyGoalsValueEstimator,
             state_shape,
             self.embed_dim,
             self.special_val,
             self.sim_fn,
-            device,
+            device_fx,
         )
-        states = torch.randint(0, 10, (n, *state_shape), device=device).float()
-        goals = torch.randint(0, 10, (n, k, *state_shape), device=device).float()
+        states = torch.randint(0, 10, (n, *state_shape), device=device_fx).float()
+        goals = torch.randint(0, 10, (n, k, *state_shape), device=device_fx).float()
         goals[:, 0] = self.special_val  # first goal per state is special
 
         result = ve.get_solved_distance(states, goals)

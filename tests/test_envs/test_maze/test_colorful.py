@@ -29,27 +29,22 @@ class TestVectorizedColorfulMaze:
     @pytest.mark.parametrize('n', [2, 5, 10])
     @pytest.mark.parametrize('k_targets', [3, 4])
     @pytest.mark.parametrize('grid_dim', [3, 4, 9])
-    @pytest.mark.parametrize('device', ['cuda', 'cpu'])
-    def test_generate_goals(self, n, k_targets, grid_dim, device):
+    def test_generate_goals(self, n, k_targets, grid_dim, device_fx):
         """
         Tests if generate_goals changes (k-1) targets to solved,
         and the last one to the position marker
         """
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-        device = torch.device(device)
-
-        states = torch.randint(0, 2, (n, grid_dim, grid_dim), device=device)
+        states = torch.randint(0, 2, (n, grid_dim, grid_dim), device=device_fx)
         targets_pos = self.sample_targets(
             n=n,
             k=k_targets + 1,
             grid_dim=grid_dim,
-            device=device,
+            device=device_fx,
         )
         targets = targets_pos[:, :-1]
         pos = targets_pos[:, -1]
 
-        batch_idx = torch.arange(n, device=device)
+        batch_idx = torch.arange(n, device=device_fx)
         for i in range(k_targets):
             states[batch_idx, targets[:, i, 0], targets[:, i, 1]] = i + 2
 
@@ -62,7 +57,7 @@ class TestVectorizedColorfulMaze:
         expected_goals[batch_idx, targets[:, -1, 0], targets[:, -1, 1]] = self.pos_marker
 
         env = VectorizedColorfulMaze(
-            device=device,
+            device=device_fx,
             grid_dim=grid_dim,
             k_targets=k_targets,
             pos_marker=self.pos_marker,
@@ -90,14 +85,12 @@ class TestVectorizedColorfulMaze:
             ),
         ],
     )
-    @pytest.mark.parametrize('device', ['cuda', 'cpu'])
-    def test_is_solved_after_action(self, k_targets, states, action, expected_solved, device):
-        device = torch.device(device)
-        states = torch.tensor(states, device=device)
-        expected_solved = torch.tensor(expected_solved, device=device, dtype=torch.bool)
+    def test_is_solved_after_action(self, k_targets, states, action, expected_solved, device_fx):
+        states = torch.tensor(states, device=device_fx)
+        expected_solved = torch.tensor(expected_solved, device=device_fx, dtype=torch.bool)
 
         env = VectorizedColorfulMaze(
-            device=device,
+            device=device_fx,
             grid_dim=states.shape[-1],
             k_targets=k_targets,
             pos_marker=self.pos_marker,

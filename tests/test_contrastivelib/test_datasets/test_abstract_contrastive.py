@@ -65,13 +65,6 @@ class TestAbstractContrastiveFileLoading:
         self.abs_lengths = np.array([2, 1], dtype=np.float32)
         self.abs_abstract = np.array([1, 0], dtype=np.float32)
 
-    @pytest.fixture(params=['cpu', 'cuda'])
-    def device(self, request):
-        """Provides available devices, skipping CUDA if unavailable."""
-        if request.param == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-        return request.param
-
     @pytest.fixture
     def data_dirs(self, tmp_path):
         """Creates traj_len and traj_len_abs directories with mock .pkl data on CPU."""
@@ -102,13 +95,13 @@ class TestAbstractContrastiveFileLoading:
         ],
     )
     @pytest.mark.parametrize('chunk_size', [1, 2])
-    def test_init_success(self, data_dirs, device, file_path, tensor_names, success, chunk_size):
+    def test_init_success(self, data_dirs, device_fx, file_path, tensor_names, success, chunk_size):
         """Tests that initialization succeeds or fails based on file availability."""
         if success:
             _PassthroughDataset(
                 file_sets_path=data_dirs[file_path],
                 tensor_names=tensor_names,
-                device=device,
+                device=device_fx,
                 chunk_size=chunk_size,
             )
         else:
@@ -116,7 +109,7 @@ class TestAbstractContrastiveFileLoading:
                 _PassthroughDataset(
                     file_sets_path=data_dirs[file_path],
                     tensor_names=tensor_names,
-                    device=device,
+                    device=device_fx,
                     chunk_size=chunk_size,
                 )
 
@@ -148,26 +141,22 @@ class TestAbstractContrastiveFileLoading:
     @pytest.mark.parametrize(
         'file_path, k', [('traj_len', 1), ('traj_len_abs', 1), ('traj_len_abs', 2)]
     )
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     @pytest.mark.parametrize('chunk_size', [1, 2])
-    def test_get_random_starting_positions(self, data_dirs, file_path, k, device, chunk_size):
+    def test_get_random_starting_positions(self, data_dirs, file_path, k, device_fx, chunk_size):
         """
-        Tests that get_random_starting_positions returns starting states of k random trajectories
-        from the same file.
+        Tests that get_random_starting_positions returns
+        starting states of k random trajectories from the same file.
         """
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
         dataset = _PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=[],
-            device=device,
+            device=device_fx,
             chunk_size=chunk_size,
         )
         starting = dataset.get_random_starting_positions(k=k)
 
         all_file_starts = [
-            torch.from_numpy(joblib.load(file_set['trajectories']))[:, 0].to(device)
+            torch.from_numpy(joblib.load(file_set['trajectories']))[:, 0].to(device_fx)
             for file_set in dataset.file_sets
         ]
 
@@ -180,19 +169,18 @@ class TestAbstractContrastiveFileLoading:
     @pytest.mark.parametrize('file_path', ['traj_len_abs'])
     @pytest.mark.parametrize('with_spec_mgr', [False, True])
     @pytest.mark.parametrize('last_n', [1, None])
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     @pytest.mark.parametrize('chunk_size', [1])
     def test_get_random_trajectory_ends(
-        self, data_dirs, file_path, with_spec_mgr, last_n, chunk_size, device
+        self, data_dirs, file_path, with_spec_mgr, last_n, chunk_size, device_fx
     ):
         """Test the get_random_trajectory_ends method - for now just on whole trajectories"""
         assert file_path == 'traj_len_abs'
         trajectories, lengths = (
-            torch.from_numpy(self.abs_trajectories).to(device),
-            torch.from_numpy(self.abs_lengths).to(device),
+            torch.from_numpy(self.abs_trajectories).to(device_fx),
+            torch.from_numpy(self.abs_lengths).to(device_fx),
         )
         spec_mgr = (
-            SpecialStateManager(-1, trajectories[0][0].shape, device=device)
+            SpecialStateManager(-1, trajectories[0][0].shape, device=device_fx)
             if with_spec_mgr
             else None
         )
@@ -215,7 +203,7 @@ class TestAbstractContrastiveFileLoading:
         dataset = _PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=['lengths'],
-            device=device,
+            device=device_fx,
             chunk_size=chunk_size,
             spec_mgr=spec_mgr,
         )
@@ -266,12 +254,12 @@ class TestAbstractContrastiveFileLoading:
             ('traj_len_abs', ['lengths', 'abstract'], 2),
         ],
     )
-    def test_iter_results(self, data_dirs, device, file_path, tensor_names, chunk_size):
+    def test_iter_results(self, data_dirs, device_fx, file_path, tensor_names, chunk_size):
         """Tests that concatenated iteration output matches the original source data."""
         dataset = _PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=tensor_names,
-            device=device,
+            device=device_fx,
             chunk_size=chunk_size,
         )
 
@@ -288,20 +276,20 @@ class TestAbstractContrastiveFileLoading:
                         torch.from_numpy(self.small_trajectories),
                     ],
                     dim=0,
-                ).to(device),
+                ).to(device_fx),
                 'lengths': torch.cat(
                     [
                         torch.from_numpy(self.big_lengths),
                         torch.from_numpy(self.small_lengths),
                     ],
                     dim=0,
-                ).to(device),
+                ).to(device_fx),
             }
         else:
             expected = {
-                'trajectories': torch.from_numpy(self.abs_trajectories).to(device),
-                'lengths': torch.from_numpy(self.abs_lengths).to(device),
-                'abstract': torch.from_numpy(self.abs_abstract).to(device),
+                'trajectories': torch.from_numpy(self.abs_trajectories).to(device_fx),
+                'lengths': torch.from_numpy(self.abs_lengths).to(device_fx),
+                'abstract': torch.from_numpy(self.abs_abstract).to(device_fx),
             }
 
         # sort all tensors, to be in the trajectories' ascending order

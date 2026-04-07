@@ -81,23 +81,21 @@ class TestVectorizedQuarterMaze:
 
     @pytest.mark.parametrize('n', [2, 3, 5])
     @pytest.mark.parametrize('grid_dim', [4, 8, 20])
-    @pytest.mark.parametrize('device', ['cuda', 'cpu'])
-    def test_generate_goals(self, n, grid_dim, device):
+    def test_generate_goals(self, n, grid_dim, device_fx):
         """Tests if generate_goals provides a list of all non-wall positions on the border"""
-        device = torch.device(device)
-        states = self._get_n_states(n=n, solved=False, grid_dim=grid_dim, device=device)
-        env = VectorizedQuarterMaze(device=device, grid_dim=grid_dim, pos_marker=self.pos_marker)
+        states = self._get_n_states(n=n, solved=False, grid_dim=grid_dim, device=device_fx)
+        env = VectorizedQuarterMaze(device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker)
         goals = env.generate_goals(states.clone())
 
         border_pos = self._get_pos_list(grid_dim, 'border')
-        idx = torch.arange(n, device=device)
+        idx = torch.arange(n, device=device_fx)
         # Exploiting that MazeVectorizedStateSet tracks positions on a grid:
         # checking if a border position is "missing" from the set tells us
         # whether any goal placed the agent there (i.e. whether a wall blocked it).
         sets = self.build_sets(goals)
         for pos in border_pos:
             mask = states[:, pos[0], pos[1]] != 0
-            candidates = torch.zeros(n, grid_dim, grid_dim, device=device)
+            candidates = torch.zeros(n, grid_dim, grid_dim, device=device_fx)
             candidates[:, pos[0], pos[1]] = self.pos_marker
             missing = sets.missing_from_sets(candidates, idx)
             assert_close(missing, mask)
@@ -105,16 +103,13 @@ class TestVectorizedQuarterMaze:
     @pytest.mark.parametrize(
         'grid_dim, n_unsolved, n_solved', [[4, 10, 0], [4, 5, 5], [4, 0, 10], [20, 3, 5]]
     )
-    @pytest.mark.parametrize('device', ['cuda', 'cpu'])
-    def test_is_solved(self, grid_dim, n_unsolved, n_solved, device):
+    def test_is_solved(self, grid_dim, n_unsolved, n_solved, device_fx):
         n = n_unsolved + n_solved
-        device = torch.device(device)
+        solved = self._get_n_states(n=n, solved=True, grid_dim=grid_dim, device=device_fx)
+        unsolved = self._get_n_states(n=n, solved=False, grid_dim=grid_dim, device=device_fx)
 
-        solved = self._get_n_states(n=n, solved=True, grid_dim=grid_dim, device=device)
-        unsolved = self._get_n_states(n=n, solved=False, grid_dim=grid_dim, device=device)
-
-        is_solved = self._get_true_false_perm(n_unsolved, n_solved, device=device)
+        is_solved = self._get_true_false_perm(n_unsolved, n_solved, device=device_fx)
         is_solved_bool = is_solved.reshape(-1, 1, 1)  # Reshape for torch.where broadcasting
         states = torch.where(is_solved_bool, solved, unsolved)
-        env = VectorizedQuarterMaze(device=device, grid_dim=grid_dim, pos_marker=self.pos_marker)
+        env = VectorizedQuarterMaze(device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker)
         assert_close(is_solved, env.is_solved(states, None))

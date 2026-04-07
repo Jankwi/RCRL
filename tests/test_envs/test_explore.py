@@ -99,28 +99,15 @@ class TestEvalNoSearchShallow:
         fix_seed(self.seed)
 
     @pytest.mark.parametrize('num_unsolved, num_solved', [(4, 0), (3, 1), (10, 10), (1, 3), (0, 4)])
-    @pytest.mark.parametrize(
-        'device',
-        [
-            'cpu',
-            pytest.param(
-                'cuda',
-                marks=pytest.mark.skipif(
-                    not torch.cuda.is_available(), reason='CUDA not available'
-                ),
-            ),
-        ],
-    )
-    def test_eval_no_search(self, num_unsolved, num_solved, device):
-        device = torch.device(device)
-        env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device)
-        ve = MockValueEstimator(device=device)
+    def test_eval_no_search(self, num_unsolved, num_solved, device_fx):
+        env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
 
         total = num_unsolved + num_solved
         states = torch.cat(
             [
-                _solvable_states(num_solved, self.max_idx, device),
-                _unsolvable_states(num_unsolved, self.max_idx, device),
+                _solvable_states(num_solved, self.max_idx, device_fx),
+                _unsolvable_states(num_unsolved, self.max_idx, device_fx),
             ],
             dim=0,
         )
@@ -145,29 +132,16 @@ class TestEvalNoSearchDeep:
         fix_seed(self.seed)
 
     @pytest.mark.parametrize('num_unsolved, num_solved', [(4, 0), (3, 1), (10, 10), (1, 3), (0, 4)])
-    @pytest.mark.parametrize(
-        'device',
-        [
-            'cpu',
-            pytest.param(
-                'cuda',
-                marks=pytest.mark.skipif(
-                    not torch.cuda.is_available(), reason='CUDA not available'
-                ),
-            ),
-        ],
-    )
-    def test_all_fit(self, num_unsolved, num_solved, device):
+    def test_all_fit(self, num_unsolved, num_solved, device_fx):
         max_len = 32
-        device = torch.device(device)
-        env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device)
-        ve = MockValueEstimator(device=device)
+        env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
 
         total = num_unsolved + num_solved
         states = torch.cat(
             [
-                _solvable_states(num_solved, self.max_idx, device),
-                _unsolvable_states(num_unsolved, self.max_idx, device),
+                _solvable_states(num_solved, self.max_idx, device_fx),
+                _unsolvable_states(num_unsolved, self.max_idx, device_fx),
             ],
             dim=0,
         )
@@ -177,15 +151,15 @@ class TestEvalNoSearchDeep:
         )
 
         # Build expected tensors by simulating the greedy policy per game
-        expected_traj = torch.zeros((total, max_len, 2), device=device, dtype=states.dtype)
-        expected_lengths = torch.zeros((total,), device=device, dtype=torch.long)
-        expected_outcome = torch.zeros((total,), device=device, dtype=torch.bool)
+        expected_traj = torch.zeros((total, max_len, 2), device=device_fx, dtype=states.dtype)
+        expected_lengths = torch.zeros((total,), device=device_fx, dtype=torch.long)
+        expected_outcome = torch.zeros((total,), device=device_fx, dtype=torch.bool)
 
         for i in range(total):
             g, p = states[i, 0].item(), states[i, 1].item()
             traj, solved = _simulate_greedy(g, p, self.max_idx, max_len)
             for j, (tg, tp) in enumerate(traj):
-                expected_traj[i, j] = torch.tensor([tg, tp], device=device)
+                expected_traj[i, j] = torch.tensor([tg, tp], device=device_fx)
             expected_lengths[i] = len(traj)
             expected_outcome[i] = solved
 
@@ -198,31 +172,18 @@ class TestEvalNoSearchDeep:
         'num_unsolved, num_solved, num_overflow',
         [(0, 0, 4), (2, 2, 2), (0, 4, 2), (4, 0, 2)],
     )
-    @pytest.mark.parametrize(
-        'device',
-        [
-            'cpu',
-            pytest.param(
-                'cuda',
-                marks=pytest.mark.skipif(
-                    not torch.cuda.is_available(), reason='CUDA not available'
-                ),
-            ),
-        ],
-    )
-    def test_some_overflow(self, num_unsolved, num_solved, num_overflow, device):
+    def test_some_overflow(self, num_unsolved, num_solved, num_overflow, device_fx):
         max_len = 32
         max_idx_high = 100
-        device = torch.device(device)
-        env = MockVectorizedEnvironment(max_idx=max_idx_high, device=device)
-        ve = MockValueEstimator(device=device)
+        env = MockVectorizedEnvironment(max_idx=max_idx_high, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
 
         total = num_unsolved + num_solved + num_overflow
         states = torch.cat(
             [
-                _solvable_states(num_solved, self.max_idx, device),
-                _unsolvable_states(num_unsolved, self.max_idx, device),
-                _overflow_states(num_overflow, max_idx_high, device),
+                _solvable_states(num_solved, self.max_idx, device_fx),
+                _unsolvable_states(num_unsolved, self.max_idx, device_fx),
+                _overflow_states(num_overflow, max_idx_high, device_fx),
             ],
             dim=0,
         )
@@ -232,15 +193,15 @@ class TestEvalNoSearchDeep:
         )
 
         # Build expected tensors by simulating the greedy policy per game
-        expected_traj = torch.zeros((total, max_len, 2), device=device, dtype=states.dtype)
-        expected_lengths = torch.zeros((total,), device=device, dtype=torch.long)
-        expected_outcome = torch.zeros((total,), device=device, dtype=torch.bool)
+        expected_traj = torch.zeros((total, max_len, 2), device=device_fx, dtype=states.dtype)
+        expected_lengths = torch.zeros((total,), device=device_fx, dtype=torch.long)
+        expected_outcome = torch.zeros((total,), device=device_fx, dtype=torch.bool)
 
         for i in range(total):
             g, p = states[i, 0].item(), states[i, 1].item()
             traj, solved = _simulate_greedy(g, p, max_idx_high, max_len)
             for j, (tg, tp) in enumerate(traj):
-                expected_traj[i, j] = torch.tensor([tg, tp], device=device)
+                expected_traj[i, j] = torch.tensor([tg, tp], device=device_fx)
             expected_lengths[i] = len(traj)
             expected_outcome[i] = solved
 
@@ -249,28 +210,15 @@ class TestEvalNoSearchDeep:
         torch.testing.assert_close(tensors['lengths'], expected_lengths)
         assert (tensors['outcome'] == expected_outcome).all()
 
-    @pytest.mark.parametrize(
-        'device',
-        [
-            'cpu',
-            pytest.param(
-                'cuda',
-                marks=pytest.mark.skipif(
-                    not torch.cuda.is_available(), reason='CUDA not available'
-                ),
-            ),
-        ],
-    )
-    def test_eval_no_search_one_unsolvable(self, device):
+    def test_eval_no_search_one_unsolvable(self, device_fx):
         max_len = 32
-        device = torch.device(device)
-        env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device)
-        ve = MockValueEstimator(device=device)
+        env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
 
-        states = torch.tensor([[0, self.max_idx - 5]], device=device)
+        states = torch.tensor([[0, self.max_idx - 5]], device=device_fx)
         tensors, metrics = eval_no_search(
             states, env, ve, storage_class=DeepStateStorage, max_len={'max_len': max_len}
         )
 
         assert metrics['solved_rate'] == 0.0
-        assert_close(tensors['outcome'], torch.tensor([False], device=device))
+        assert_close(tensors['outcome'], torch.tensor([False], device=device_fx))

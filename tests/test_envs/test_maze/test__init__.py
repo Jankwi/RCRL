@@ -85,21 +85,17 @@ class TestAbstractVectorizedMazePositions:
             ),
         ],
     )
-    @pytest.mark.parametrize('device', ['cpu', 'cuda'])
     def test_preview_action(
-        self, states_data, action_no, expected_legal, expected_legal_states, env_class, device
+        self, states_data, action_no, expected_legal, expected_legal_states, env_class, device_fx
     ):
         """Tests the preview action method on various board states, testing for blocks"""
-        if device == 'cuda' and not torch.cuda.is_available():
-            pytest.skip('CUDA not available')
-
         grid_dim = len(states_data[0])
-        env = env_class(device=device, grid_dim=grid_dim, pos_marker=self.pos_marker)
+        env = env_class(device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker)
 
-        states = torch.tensor(states_data, device=device)
-        expected_legal_t = torch.tensor(expected_legal, device=device)
+        states = torch.tensor(states_data, device=device_fx)
+        expected_legal_t = torch.tensor(expected_legal, device=device_fx)
         expected_legal_states_t = (
-            torch.tensor(expected_legal_states, device=device)
+            torch.tensor(expected_legal_states, device=device_fx)
             if (expected_legal_states != [])
             else None
         )
