@@ -69,16 +69,24 @@ class VectorizedColorfulMaze(AbstractVectorizedMaze):
         )
         self.k_targets = k_targets
         self.spec_mgr = spec_mgr
+        self.targets_sum = sum([(i + 2) for i in range(k_targets)])
+
+    def _sum_over_1(self, t: torch.Tensor) -> torch.Tensor:
+        return t.masked_fill(t <= 1, 0).sum(dim=-1)
 
     def get_covered_pos(self, states: torch.Tensor) -> torch.Tensor:
         """If the agent is covering the minimal unsolved target, uncovers that target as solved."""
         batch = len(states)
-        n_solved = (states > self.pos_marker).view(batch, -1).sum(dim=-1)
-        next_target = (n_solved + 2).view(batch, 1, 1)
-        target_visible = (states == next_target).view(batch, -1).any(dim=-1)
-        result = torch.full((batch,), self.floor_marker, device=self.device, dtype=states.dtype)
-        result[~target_visible] = (next_target.view(batch) + self.pos_marker)[~target_visible]
-        return result
+        states_mod = torch.remainder(states, self.pos_marker).view(batch, -1)
+        missing_val = self.targets_sum - self._sum_over_1(states_mod)
+        missing_val[missing_val == 0] = self.floor_marker
+
+        next_target = (states > self.pos_marker).view(batch, -1).sum(dim=-1) + 2
+        mark_visited = torch.logical_and(
+            (missing_val <= next_target), (missing_val != self.floor_marker)
+        )
+        missing_val[mark_visited] += self.pos_marker
+        return missing_val
 
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
         """

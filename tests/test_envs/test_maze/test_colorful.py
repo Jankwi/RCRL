@@ -73,6 +73,26 @@ class TestVectorizedColorfulMaze:
         assert_close(goals, expected_goals)
 
     @pytest.mark.parametrize(
+        'k_targets, states, expected_covered',
+        [
+            # 1a) - agent is covering the floor (1)
+            # 1b) - agent is covering the first target (2), which will be solved when uncovered (12)
+            (2, [[[10, 1], [2, 3]], [[10, 1], [3, 1]]], [1, 12]),
+            # 2a) - agent is covering the already solved first target (12)
+            # 2b) - agent is covering the second target (3), which will remain unsolved (3)
+            (3, [[[10, 1], [13, 4]], [[10, 1], [2, 4]]], [12, 3]),
+        ],
+    )
+    def test_get_covered_pos(self, k_targets, states, expected_covered, device_fx):
+        states = torch.tensor(states, device=device_fx)
+        expected_covered = torch.tensor(expected_covered, device=device_fx)
+        env = VectorizedColorfulMaze(
+            device=device_fx, grid_dim=states.shape[-1], k_targets=k_targets
+        )
+        covered = env.get_covered_pos(states)
+        assert_close(covered, expected_covered)
+
+    @pytest.mark.parametrize(
         'k_targets, states, action, expected_solved',
         [
             (
