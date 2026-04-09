@@ -214,6 +214,38 @@ class TestAbstractContrastiveFileLoading:
         assert_close(states, expected_states)
 
     @pytest.mark.parametrize(
+        'file_path, k',
+        [
+            ('traj_len', 1),
+            ('traj_len_abs', 1),
+            ('traj_len_abs', 2),
+        ],
+    )
+    def test_get_random_trajectory_data_values(self, data_dirs, file_path, k, device_fx):
+        """
+        Tests that get_random_trajectory_data returns k trajectories
+        that exist in the source data.
+        """
+        dataset = _PassthroughDataset(
+            file_sets_path=data_dirs[file_path],
+            tensor_names=['lengths'],
+            device=device_fx,
+            chunk_size=1,
+        )
+        result = dataset.get_random_trajectory_data(k=k)
+
+        all_source_trajectories = [
+            torch.from_numpy(joblib.load(fs['trajectories'])).to(device_fx)
+            for fs in dataset.file_sets
+        ]
+        for i in range(k):
+            row = result['trajectories'][i]
+            found = any(
+                any(torch.equal(row, src_row) for src_row in src) for src in all_source_trajectories
+            )
+            assert found, f'Row {i} not found in any source file'
+
+    @pytest.mark.parametrize(
         'file_path, tensor_names',
         [('traj_len', ['lengths']), ('traj_len_abs', ['lengths', 'abstract'])],
     )

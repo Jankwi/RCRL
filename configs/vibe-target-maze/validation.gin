@@ -1,0 +1,7 @@
+run.seed = 67
+run.job_class = @ValidationJob
+    ValidationJob.dataset_path = 'data/vibe-target-maze/train'
+    ValidationJob.dataset_cls = @_PassthroughDataset
+    ValidationJob.env_cls = @VectorizedTargetMaze
+        VectorizedTargetMaze.grid_dim = 21
+    ValidationJob.n_gifs = 5

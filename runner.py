@@ -6,6 +6,7 @@ import gin
 from src.common import fix_seed
 from src.jobs import AbstractJob
 from src.jobs.train_job import *  # noqa: F403
+from src.jobs.validation_job import *  # noqa: F403
 
 
 def gin_config_to_dict(config_str: str) -> Dict[str, str]:

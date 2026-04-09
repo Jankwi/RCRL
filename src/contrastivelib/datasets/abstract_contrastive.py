@@ -57,6 +57,17 @@ class AbstractContrastiveDataset(IterableDataset):
                     file_sets[-1][suffix] = f'{file_sets_path}/{extra_filename}'
         return sorted(file_sets, key=lambda fs: fs[master_tn])
 
+    def get_random_trajectory_data(self, k: int, use_preloaded: bool = True) -> TensorDict:
+        """Samples k trajectories from a random file, returning the tensordict representing it"""
+        if use_preloaded and hasattr(self, 'preloaded'):
+            return self.preloaded[:k].clone()
+
+        file_set = random.choice(self.file_sets)
+        file_set_tensordict, _ = self._load_file_set(file_set=file_set)
+        ret = file_set_tensordict[:k].clone()
+        del file_set_tensordict
+        return ret
+
     def get_random_starting_positions(
         self,
         k: int,

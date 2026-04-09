@@ -1,0 +1,124 @@
+# ruff: noqa: F401
+import os
+from typing import Dict, List, Tuple, Type
+
+import gin
+import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+from tensordict import TensorDict
+
+from jobs.utils.anomalies import AnomalyManager
+from src.contrastivelib.datasets import AbstractContrastiveDataset
+from src.envs import VectorizedEnvironment
+from src.envs.explore import eval_no_search
+from src.envs.maze.colorful import VectorizedColorfulMaze
+from src.envs.maze.quarter import VectorizedQuarterMaze
+from src.envs.maze.target import VectorizedTargetMaze
+from src.envs.validation import count_solved_trajectories, count_valid_transitions
+from src.envs.visual import get_trajectory_gifs
+
+
+@gin.configurable
+class _PassthroughDataset(AbstractContrastiveDataset):
+    """Concrete subclass that returns input data as-is."""
+
+    def __init__(
+        self,
+        dataset_path: str,
+        device: torch.device,
+        chunk_size: int,
+        tensor_names: List[str] = ['lengths'],
+        master_tn: str = 'trajectories',
+    ) -> None:
+        super().__init__(
+            file_sets_path=dataset_path,
+            tensor_names=tensor_names,
+            device=device,
+            chunk_size=chunk_size,
+            master_tn=master_tn,
+        )
+
+    def contrastive_pick(self, **kwargs) -> tuple[TensorDict, None]:  # noqa: ANN003
+        return TensorDict(kwargs), None
+
+
+@gin.configurable
+class ValidationJob:
+    """Job for validating a dataset against its environment"""
+
+    def __init__(
+        self,
+        dataset_path: str,
+        dataset_cls: Type[_PassthroughDataset],
+        env_cls: Type[VectorizedEnvironment],
+        chunk_size: int = 1024,
+        n_invalid_renders: int = 5,
+        n_unsolved_renders: int = 0,
+        n_gifs: int = 0,
+        save_dir: str = '/validation-logs',
+        gin_config: Dict[str, str] = None,
+    ) -> None:
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.dataset = dataset_cls(
+            dataset_path=dataset_path, chunk_size=chunk_size, device=self.device
+        )
+        self.env = env_cls(device=self.device)
+        self.n_gifs = n_gifs
+
+        self.save_dir = dataset_path + save_dir
+        os.makedirs(self.save_dir, exist_ok=True)
+        self.anm_mgr = AnomalyManager(
+            dir=f'{self.save_dir}/anomalies',
+            budget={
+                'invalid_transition': n_invalid_renders,
+                'unsolved_trajectory': n_unsolved_renders,
+            },
+        )
+
+        print('-----Initalized ValidationJob-----------')
+        for name, value in gin_config.items():
+            print(f'  {name}: {value}')
+        print('---------------------------------------')
+
+    def get_gifs(self) -> None:
+        if self.n_gifs == 0:
+            return
+
+        tensors = self.dataset.get_random_trajectory_data(self.n_gifs)
+        materials = get_trajectory_gifs(
+            starting_positions=None,
+            env=self.env,
+            ve=None,
+            max_len=None,
+            tensors=tensors,
+        )
+
+        print('---------------------------------------')
+        print(f'Saving {len(materials)} gifs to {self.save_dir}...')
+        for i, frames in enumerate(materials):
+            filename = f'{self.save_dir}/trajectory-{i}.gif'
+            frames[0].save(filename, save_all=True, append_images=frames[1:], duration=200, loop=0)
+
+    def _process_stats(self, stats: List[Tuple[int, int]]) -> Tuple[int, int, float]:
+        total_first = sum(first for first, _ in stats)
+        total_all = sum(second for _, second in stats)
+        return total_first, total_all, total_first / total_all
+
+    def get_traj_stats(self) -> None:
+        valid, solved = [], []
+        for tensors, _ in self.dataset:
+            valid.append(count_valid_transitions(**tensors, env=self.env, anm_mgr=self.anm_mgr))
+            solved.append(count_solved_trajectories(**tensors, env=self.env, anm_mgr=self.anm_mgr))
+
+        print('---------------------------------------')
+        print("---------Trajectories' Stats----------")
+        valid_tr, all_tr, prc_tr = self._process_stats(valid)
+        print(f'{valid_tr} out of {all_tr} transitions are valid ({prc_tr:.2%})')
+        solved_tr, all_tr, prc_solved = self._process_stats(solved)
+        print(f'{solved_tr} out of {all_tr} trajectories are solved ({prc_solved:.2%})')
+
+    def execute(self) -> None:
+        with self.dataset.preload_file_set():
+            self.get_gifs()
+            self.get_traj_stats()
