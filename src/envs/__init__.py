@@ -20,7 +20,10 @@ class VectorizedEnvironment(ABC):
         pass
 
     def preview_all_actions(self, states: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Returns a (result, legality) tuple for all actions on the given states - doesn't corrupt the original states."""
+        """
+        Returns a (result, legality) tuple for all actions on the given states
+            - doesn't corrupt original states.
+        """
         n, k = states.shape[0], self.action_space_size
         st_shape, act_shape = states.shape[1:], self.action_tensor.shape[1:]
         expanded_states = states.repeat_interleave(k, dim=0)
@@ -32,7 +35,10 @@ class VectorizedEnvironment(ABC):
     def preview_actions(
         self, states: torch.Tensor, action_tensors: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """For each state action pair, returns a (result, legality) tuple - may corrupt the original states"""
+        """
+        For each state action pair, returns a (result, legality) tuple
+            - corrupts original states
+        """
         pass
 
     def preview_action(

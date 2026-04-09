@@ -17,9 +17,17 @@ class VectorizedQuarterMaze(AbstractVectorizedMaze):
         device: torch.device,
         grid_dim: int = 20,
         pos_marker: int = 3,
+        floor_marker: int = 0,
+        wall_marker: int = 1,
         spec_mgr: SpecialStateManager = None,
     ) -> None:
-        super().__init__(device=device, grid_dim=grid_dim, pos_marker=pos_marker)
+        super().__init__(
+            device=device,
+            grid_dim=grid_dim,
+            pos_marker=pos_marker,
+            floor_marker=floor_marker,
+            wall_marker=wall_marker,
+        )
         self.quarter_tensor = torch.sum(self._get_quarter_pos(), dim=0)
 
         self.spec_mgr = spec_mgr
@@ -31,7 +39,12 @@ class VectorizedQuarterMaze(AbstractVectorizedMaze):
 
     def get_covered_pos(self, states: torch.Tensor) -> torch.Tensor:
         """Agent moves on empty cells only — nothing to restore."""
-        return torch.zeros(states.shape[0], device=states.device, dtype=states.dtype)
+        return torch.full(
+            (states.shape[0],),
+            fill_value=self.floor_marker,
+            device=states.device,
+            dtype=states.dtype,
+        )
 
     def _get_quarter_pos(self) -> torch.Tensor:
         return generate_border_positions(
@@ -50,7 +63,7 @@ class VectorizedQuarterMaze(AbstractVectorizedMaze):
             return self.spec_mgr.create_many(len(states))
 
         goals = states.clone()
-        goals[goals == self.pos_marker] = 0
+        goals[goals == self.pos_marker] = self.floor_marker
         goals = goals.unsqueeze(1) + self._get_quarter_pos().to(torch.long) * self.pos_marker
         valid = torch.all((goals <= self.pos_marker), dim=(2, 3))
         first_valid_idx = valid.long().argmax(dim=1)

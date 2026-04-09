@@ -8,6 +8,8 @@ from src.envs.maze.colorful import VectorizedColorfulMaze
 
 class TestVectorizedColorfulMaze:
     def setup_method(self, method):
+        self.wall_marker = 0
+        self.floor_marker = 1
         self.pos_marker = 10
         self.seed = 42
         fix_seed(self.seed)
@@ -50,7 +52,7 @@ class TestVectorizedColorfulMaze:
 
         expected_goals = states.clone()
         states[batch_idx, pos[:, 0], pos[:, 1]] = self.pos_marker
-        expected_goals[batch_idx, pos[:, 0], pos[:, 1]] = 0
+        expected_goals[batch_idx, pos[:, 0], pos[:, 1]] = self.floor_marker
 
         for i in range(k_targets - 1):
             expected_goals[batch_idx, targets[:, i, 0], targets[:, i, 1]] += self.pos_marker
@@ -61,6 +63,8 @@ class TestVectorizedColorfulMaze:
             grid_dim=grid_dim,
             k_targets=k_targets,
             pos_marker=self.pos_marker,
+            floor_marker=self.floor_marker,
+            wall_marker=self.wall_marker,
         )
         goals = env.generate_goals(states.clone())
         print('states', states)
@@ -73,13 +77,13 @@ class TestVectorizedColorfulMaze:
         [
             (
                 2,  # 2 targets marked 12 and 13
-                [[[10, 3, 1], [12, 1, 0], [1, 0, 1]], [[0, 0, 1], [10, 3, 0], [2, 0, 1]]],
+                [[[10, 3, 0], [12, 0, 1], [0, 1, 0]], [[1, 1, 0], [10, 3, 1], [2, 1, 0]]],
                 1,  # action 1 right
                 [True, False],
             ),
             (
                 1,  # 1 target marked as 11
-                [[[10, 0], [0, 1]]],
+                [[[10, 1], [1, 0]]],
                 2,  # action 2 down
                 [False],
             ),
@@ -94,6 +98,8 @@ class TestVectorizedColorfulMaze:
             grid_dim=states.shape[-1],
             k_targets=k_targets,
             pos_marker=self.pos_marker,
+            floor_marker=self.floor_marker,
+            wall_marker=self.wall_marker,
         )
 
         goals = env.generate_goals(states)

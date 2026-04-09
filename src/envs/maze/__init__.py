@@ -16,7 +16,14 @@ from src.envs.maze.utils import get_pos_indices
 class AbstractVectorizedMaze(VectorizedEnvironment):
     """A Vectorized RL environment for a grid_dim x grid_dim maze"""
 
-    def __init__(self, device: torch.device, grid_dim: int = 20, pos_marker: int = 3) -> None:
+    def __init__(
+        self,
+        device: torch.device,
+        grid_dim: int = 20,
+        pos_marker: int = 3,
+        floor_marker: int = 0,
+        wall_marker: int = 1,
+    ) -> None:
         super().__init__(
             torch.stack(
                 [
@@ -31,7 +38,13 @@ class AbstractVectorizedMaze(VectorizedEnvironment):
         self.grid_dim = grid_dim
         self.lower_bound = torch.tensor([0], device=self.device)
         self.upper_bound = torch.tensor([grid_dim - 1], device=self.device)
-        self.pos_marker: int = pos_marker
+        self.pos_marker = pos_marker
+        self.floor_marker = floor_marker
+        self.wall_marker = wall_marker
+        assert {self.floor_marker, self.wall_marker} == {0, 1}, (
+            f'floor_marker and wall_marker must be 0 and 1 in some order, '
+            f'got floor_marker={self.floor_marker}, wall_marker={self.wall_marker}'
+        )
 
     @abstractmethod
     def get_covered_pos(self, states: torch.Tensor) -> torch.Tensor:
@@ -56,7 +69,7 @@ class AbstractVectorizedMaze(VectorizedEnvironment):
         new_pos = torch.clamp(old_pos + action_tensors, min=self.lower_bound, max=self.upper_bound)
 
         legal_move = torch.logical_and(
-            states[batch_idx, new_pos[:, 0], new_pos[:, 1]] != 1,
+            states[batch_idx, new_pos[:, 0], new_pos[:, 1]] != self.wall_marker,
             states[batch_idx, new_pos[:, 0], new_pos[:, 1]] != self.pos_marker,
         )
         states[batch_idx, old_pos[:, 0], old_pos[:, 1]] = self.get_covered_pos(states)
@@ -65,7 +78,11 @@ class AbstractVectorizedMaze(VectorizedEnvironment):
 
     def get_state_sets(self, n_sets: int) -> MazeVectorizedStateSet:
         return MazeVectorizedStateSet(
-            n_sets=n_sets, grid_dim=self.grid_dim, device=self.device, pos_marker=self.pos_marker
+            n_sets=n_sets,
+            grid_dim=self.grid_dim,
+            device=self.device,
+            pos_marker=self.pos_marker,
+            floor_marker=self.floor_marker,
         )
 
     def render_state(self, state: np.ndarray) -> Figure:

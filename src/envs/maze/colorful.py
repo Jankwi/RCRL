@@ -42,7 +42,8 @@ class VectorizedColorfulMaze(AbstractVectorizedMaze):
     """
     A VectorizedMazeEnvironment, in which the goal is to reach all targets in a specified order.
     By default:
-        * Walls are marked with 1's
+        * Walls are marked with 0's
+        * The floor is marked with 1's
         * The agent's position is marked with a 10
         * Unsolved targets are marked with 2, 3, 4, ... (up to 9)
         * Solved targets are marked with 12, 13, 14, ... (up to 19)
@@ -54,10 +55,18 @@ class VectorizedColorfulMaze(AbstractVectorizedMaze):
         grid_dim: int = 10,
         k_targets: int = 3,
         pos_marker: int = 10,
+        floor_marker: int = 1,
+        wall_marker: int = 0,
         spec_mgr: SpecialStateManager = None,
     ) -> None:
         assert k_targets <= (pos_marker - 2)
-        super().__init__(device=device, grid_dim=grid_dim, pos_marker=pos_marker)
+        super().__init__(
+            device=device,
+            grid_dim=grid_dim,
+            pos_marker=pos_marker,
+            floor_marker=floor_marker,
+            wall_marker=wall_marker,
+        )
         self.k_targets = k_targets
         self.spec_mgr = spec_mgr
 
@@ -67,7 +76,7 @@ class VectorizedColorfulMaze(AbstractVectorizedMaze):
         n_solved = (states > self.pos_marker).view(batch, -1).sum(dim=-1)
         next_target = (n_solved + 2).view(batch, 1, 1)
         target_visible = (states == next_target).view(batch, -1).any(dim=-1)
-        result = torch.zeros(batch, device=self.device, dtype=states.dtype)
+        result = torch.full((batch,), self.floor_marker, device=self.device, dtype=states.dtype)
         result[~target_visible] = (next_target.view(batch) + self.pos_marker)[~target_visible]
         return result
 
@@ -83,7 +92,7 @@ class VectorizedColorfulMaze(AbstractVectorizedMaze):
             return self.spec_mgr.create_many(len(states))
 
         goals = states.clone()
-        goals[states == self.pos_marker] = 0
+        goals[states == self.pos_marker] = self.floor_marker
         goals[(1 < states) & (states < self.pos_marker)] += self.pos_marker
         goals[goals == (self.k_targets + 1 + self.pos_marker)] = self.pos_marker
         return goals
