@@ -3,7 +3,7 @@ from typing import Tuple
 import torch
 
 from jobs.utils.anomalies import AnomalyManager
-from src.envs import VectorizedEnvironment
+from src.envs import ValueEstimator, VectorizedEnvironment
 
 
 def get_neighbours(trajectories: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
@@ -79,3 +79,43 @@ def count_solved_trajectories(
                 anm_mgr.log_figure(fig, 'last_state')
 
     return is_solved.sum(), len(is_solved)
+
+
+class DataBasedValueEstimator(ValueEstimator):
+    """
+    Value Estimator subclass, based on trajectories it was initalised on.
+    If all trajectories lead to solved states, this estimator also should do so.
+    """
+
+    def __init__(
+        self, trajectories: torch.Tensor, lengths: torch.Tensor, device: torch.device
+    ) -> torch.Tensor:
+        super().__init__(device=device)
+        n_trajs, self.pad_length = trajectories.shape[0], trajectories.shape[1]
+        # self.vals shape : [n_trajs * pad_length, 1]
+        # Distance to end = length - time_index
+        # Create distances, clamp negative values to a large value (pad value)
+        time_indices = torch.arange(self.pad_length, device=self.device).reshape(1, self.pad_length)
+        dists = lengths.unsqueeze(1) - time_indices
+        self.big_val = self.pad_length + 10
+        self.vals = torch.where(dists > 0, dists, self.big_val).reshape(-1, 1)
+
+        # self.flat_data.shape : [1, n_trajs * pad_length, state_size]
+        self.flat_data = trajectories.reshape(1, n_trajs * self.pad_length, -1)
+
+    def get_solved_distance(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
+        """
+        Performs a lookup of each state in the trajectory data.
+        If the state is there, returns the closest it's ever been to the trajectory end.
+        """
+        batch = len(states)
+        # self.flat_data.shape [batch, 1, state_size]
+        flat_states = states.reshape(batch, 1, -1)
+        # lookup shape [batch, n_trajs], where lookup[i][j] is true if
+        # states[i] is equal to the j-th position in the starting trajectory
+        lookup = torch.all((flat_states == self.flat_data), dim=-1)
+
+        # est_vals shape [batch, n_trajs * pad_length]
+        est_vals = torch.full(lookup.shape, self.big_val, device=self.device)
+        est_vals = torch.where(lookup, self.vals.reshape(-1), est_vals)
+        return torch.amin(est_vals, dim=-1).to(torch.float)

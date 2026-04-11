@@ -15,7 +15,11 @@ from src.envs.explore import eval_no_search
 from src.envs.maze.colorful import VectorizedColorfulMaze
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
-from src.envs.validation import count_solved_trajectories, count_valid_transitions
+from src.envs.validation import (
+    DataBasedValueEstimator,
+    count_solved_trajectories,
+    count_valid_transitions,
+)
 from src.envs.visual import get_trajectory_gifs
 
 
@@ -53,9 +57,10 @@ class ValidationJob:
         dataset_cls: Type[_PassthroughDataset],
         env_cls: Type[VectorizedEnvironment],
         chunk_size: int = 1024,
+        n_gifs: int = 0,
+        n_solved_rate: int = 64,
         n_invalid_renders: int = 5,
         n_unsolved_renders: int = 0,
-        n_gifs: int = 0,
         save_dir: str = '/validation-logs',
         gin_config: Dict[str, str] = None,
     ) -> None:
@@ -65,6 +70,7 @@ class ValidationJob:
         )
         self.env = env_cls(device=self.device)
         self.n_gifs = n_gifs
+        self.n_solved_rate = n_solved_rate
 
         self.save_dir = dataset_path + save_dir
         os.makedirs(self.save_dir, exist_ok=True)
@@ -99,6 +105,19 @@ class ValidationJob:
         for i, frames in enumerate(materials):
             filename = f'{self.save_dir}/trajectory-{i}.gif'
             frames[0].save(filename, save_all=True, append_images=frames[1:], duration=200, loop=0)
+        print('---------------------------------------')
+
+    def get_sanity_check_solved_rate(self) -> None:
+        tensors = self.dataset.get_random_trajectory_data(self.n_solved_rate)
+        starting = tensors['trajectories'][:, 0]
+        ve = DataBasedValueEstimator(
+            tensors['trajectories'], tensors['lengths'], device=self.device
+        )
+
+        solved_rate = eval_no_search(starting, self.env, ve)['solved_rate']
+        print('---------------------------------------')
+        print(f'Sanity check {solved_rate=}')
+        print('---------------------------------------')
 
     def _process_stats(self, stats: List[Tuple[int, int]]) -> Tuple[int, int, float]:
         total_first = sum(first for first, _ in stats)
@@ -117,8 +136,10 @@ class ValidationJob:
         print(f'{valid_tr} out of {all_tr} transitions are valid ({prc_tr:.2%})')
         solved_tr, all_tr, prc_solved = self._process_stats(solved)
         print(f'{solved_tr} out of {all_tr} trajectories are solved ({prc_solved:.2%})')
+        print('---------------------------------------')
 
     def execute(self) -> None:
         with self.dataset.preload_file_set():
             self.get_gifs()
+            self.get_sanity_check_solved_rate()
             self.get_traj_stats()

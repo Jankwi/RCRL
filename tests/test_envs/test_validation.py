@@ -3,7 +3,12 @@ import torch
 from torch.testing import assert_close
 
 from src.common import fix_seed
-from src.envs.validation import count_solved_trajectories, count_valid_transitions, get_neighbours
+from src.envs.validation import (
+    DataBasedValueEstimator,
+    count_solved_trajectories,
+    count_valid_transitions,
+    get_neighbours,
+)
 from tests.test_envs.mock import MockVectorizedEnvironment
 
 
@@ -81,3 +86,34 @@ class TestValidation:
         valid_count, total_count = count_solved_trajectories(trajectories, lengths, env)
         assert valid_count == expected_solved
         assert total_count == expected_total
+
+    @pytest.mark.parametrize(
+        'trajectories, lengths, queries, expected_vals',
+        [
+            # Distances:
+            #  4 ([6, 0], [6, 3]); 2 ([6, 4], [6, 5]); 1 ([6, 6])
+            (
+                [[[6, 0], [6, 4], [6, 5], [6, 6]], [[6, 5], [6, 3], [6, 1], [6, 4], [6, 6]]],
+                [4, 5],
+                [[6, 4], [9, 9], [6, 5], [6, 6], [6, 0], [6, 3]],
+                [2, 100000, 2, 1, 4, 4],
+            ),
+        ],
+    )
+    def test_data_based_value_estimator(
+        self, trajectories, lengths, queries, expected_vals, device_fx
+    ):
+        lengths = torch.tensor(lengths, device=device_fx)
+        trajectories = _to_trajectories(trajectories, device=device_fx)
+        pad_length = trajectories.shape[1]
+        ve = DataBasedValueEstimator(trajectories=trajectories, lengths=lengths, device=device_fx)
+
+        # Trim all values bigger than, the largest possible lookup value to ve.big_val
+        assert ve.big_val > pad_length
+        for i in range(len(expected_vals)):
+            if expected_vals[i] > pad_length:
+                expected_vals[i] = ve.big_val
+        expected_vals = torch.tensor(expected_vals, device=device_fx).to(torch.float)
+
+        queries = torch.tensor(queries, device=device_fx)
+        assert_close(ve.get_solved_distance(queries, None), expected_vals)
