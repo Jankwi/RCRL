@@ -44,7 +44,8 @@ class VectorizedEnvironment(ABC):
     def preview_action(
         self, states: torch.Tensor, action_no: int
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        action_tensors = self.action_tensor[action_no].clone().unsqueeze(0).expand(len(states), -1)
+        act_shape = len(states), *([-1] * len(self.action_tensor.shape[1:]))
+        action_tensors = self.action_tensor[action_no].clone().unsqueeze(0).expand(act_shape)
         return self.preview_actions(states, action_tensors)
 
     @abstractmethod

@@ -68,7 +68,7 @@ def count_solved_trajectories(
     """Returns a (solved, total) tuple of ints"""
     batch_idx = torch.arange(len(trajectories), device=trajectories.device)
     goals = env.generate_goals(states=trajectories[batch_idx, 1])
-    is_solved = env.is_solved(trajectories[batch_idx, lengths - 1], goals)
+    is_solved = env.is_solved(trajectories[batch_idx, (lengths - 1).long()], goals)
 
     if anm_mgr is not None:
         if anm_mgr.has_budget('unsolved_trajectory') and torch.any(~is_solved).item():

@@ -8,19 +8,21 @@ import torch
 import torch.nn as nn
 from tensordict import TensorDict
 
-from jobs.utils.anomalies import AnomalyManager
 from src.contrastivelib.datasets import AbstractContrastiveDataset
 from src.envs import VectorizedEnvironment
 from src.envs.explore import eval_no_search
 from src.envs.maze.colorful import VectorizedColorfulMaze
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
+from src.envs.takuzu import VectorizedTakuzu
 from src.envs.validation import (
     DataBasedValueEstimator,
     count_solved_trajectories,
     count_valid_transitions,
 )
 from src.envs.visual import get_trajectory_gifs
+from src.jobs.utils.anomalies import AnomalyManager
+from src.jobs.utils.dummy import DummySpecialStateManager
 
 
 @gin.configurable
@@ -62,13 +64,19 @@ class ValidationJob:
         n_invalid_renders: int = 5,
         n_unsolved_renders: int = 0,
         save_dir: str = '/validation-logs',
+        pass_dummy_spec_mgr: bool = False,
         gin_config: Dict[str, str] = None,
     ) -> None:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.dataset = dataset_cls(
             dataset_path=dataset_path, chunk_size=chunk_size, device=self.device
         )
-        self.env = env_cls(device=self.device)
+        extra_args = (
+            {'spec_mgr': DummySpecialStateManager(device=self.device)}
+            if pass_dummy_spec_mgr
+            else {}
+        )
+        self.env = env_cls(device=self.device, **extra_args)
         self.n_gifs = n_gifs
         self.n_solved_rate = n_solved_rate
 
