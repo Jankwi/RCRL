@@ -9,11 +9,15 @@ import torch.nn as nn
 class SpecialStateManager:
     """Class for detecting and dispensing special tokens representing special states"""
 
-    def __init__(self, val: int, shape: Tuple[int, ...], device: torch.device) -> None:
+    def __init__(
+        self, val: int, shape: Tuple[int, ...], device: torch.device, dt_string: str = None
+    ) -> None:
         self.device = device
         self.val = val
         self.shape = shape
         self.template = torch.full(shape, val, device=self.device)
+        if dt_string is not None:
+            self.template = self.template.to(dtype=getattr(torch, dt_string))
         self.detect_dim = tuple(range(1, len(shape) + 1))
 
     @torch.no_grad()

@@ -26,8 +26,15 @@ def eval_no_search(
 
         for action in env.actions():
             next_board, legality = env.preview_action(states.clone(), action)
-            next_val = ve.get_solved_distance(next_board, storage.active_goals())
-            new_candidate = (legality & storage.wasnt_visited(next_board)) & (next_val < best_val)
+
+            valid_mask = legality & storage.wasnt_visited(next_board)
+            next_val = ve.get_inf((states.shape[0],))
+            if valid_mask.any():
+                next_val[valid_mask] = ve.get_solved_distance(
+                    next_board[valid_mask], storage.active_goals()[valid_mask]
+                )
+
+            new_candidate = valid_mask & (next_val < best_val)
             best_next[new_candidate] = next_board[new_candidate]
             best_val[new_candidate] = next_val[new_candidate]
 

@@ -10,6 +10,8 @@ class Embedding2D(nn.Module):
         self.embed = nn.Embedding(n_states, embedding_dim=embed_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.dtype == torch.uint8:
+            x = x.long()
         return self.embed(x).permute(0, 3, 1, 2)  # [M, embed_dim, grid_dim, grid_dim]
 
 
