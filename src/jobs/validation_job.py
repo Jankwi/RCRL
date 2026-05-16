@@ -5,10 +5,8 @@ from typing import Dict, List, Tuple, Type
 import gin
 import matplotlib.pyplot as plt
 import torch
-import torch.nn as nn
-from tensordict import TensorDict
 
-from src.contrastivelib.datasets import AbstractContrastiveDataset
+from src.contrastivelib.datasets import AbstractContrastiveDataset, PassthroughDataset
 from src.envs import VectorizedEnvironment
 from src.envs.explore import eval_no_search
 from src.envs.maze.colorful import VectorizedColorfulMaze
@@ -26,38 +24,14 @@ from src.jobs.utils.dummy import DummySpecialStateManager
 
 
 @gin.configurable
-class _PassthroughDataset(AbstractContrastiveDataset):
-    """Concrete subclass that returns input data as-is."""
-
-    def __init__(
-        self,
-        dataset_path: str,
-        device: torch.device,
-        chunk_size: int,
-        tensor_names: List[str] = ['lengths'],
-        master_tn: str = 'trajectories',
-    ) -> None:
-        super().__init__(
-            file_sets_path=dataset_path,
-            tensor_names=tensor_names,
-            device=device,
-            chunk_size=chunk_size,
-            master_tn=master_tn,
-        )
-
-    def contrastive_pick(self, **kwargs) -> tuple[TensorDict, None]:  # noqa: ANN003
-        return TensorDict(kwargs), None
-
-
-@gin.configurable
 class ValidationJob:
     """Job for validating a dataset against its environment"""
 
     def __init__(
         self,
         dataset_path: str,
-        dataset_cls: Type[_PassthroughDataset],
         env_cls: Type[VectorizedEnvironment],
+        dataset_cls: Type[AbstractContrastiveDataset] = PassthroughDataset,
         chunk_size: int = 1024,
         n_gifs: int = 0,
         n_solved_rate: int = 64,
@@ -69,7 +43,7 @@ class ValidationJob:
     ) -> None:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.dataset = dataset_cls(
-            dataset_path=dataset_path, chunk_size=chunk_size, device=self.device
+            file_sets_path=dataset_path, chunk_size=chunk_size, device=self.device
         )
         extra_args = (
             {'spec_mgr': DummySpecialStateManager(device=self.device)}

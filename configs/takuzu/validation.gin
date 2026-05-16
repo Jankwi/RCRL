@@ -3,7 +3,6 @@ run.job_class = @ValidationJob
     ValidationJob.dataset_path = 'data/takuzu-sample'
     ValidationJob.n_unsolved_renders = 5
     ValidationJob.chunk_size = 128
-    ValidationJob.dataset_cls = @_PassthroughDataset
     ValidationJob.env_cls = @VectorizedTakuzu
         VectorizedTakuzu.n = 8
     ValidationJob.pass_dummy_spec_mgr = True

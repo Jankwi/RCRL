@@ -6,10 +6,7 @@ import gin
 import torch
 import torch.nn as nn
 
-from src.contrastivelib.datasets import (
-    AbstractContrastiveDataset,
-    ContrastiveDatasetNoSpecial,
-)
+from src.contrastivelib.datasets import AbstractContrastiveDataset, PassthroughDataset
 from src.contrastivelib.metrics.estimation import ManyGoalsValueEstimator, SingleGoalValueEstimator
 from src.contrastivelib.metrics.losses import AbstractContrastiveLoss
 from src.contrastivelib.metrics.sims import get_similarity_measure
@@ -38,7 +35,7 @@ class TimingJob(AbstractJob):
         n_starting: int,
         env_class: Type[VectorizedEnvironment],
         base_model_class: Type[nn.Module],
-        dataset_class: Type[AbstractContrastiveDataset],
+        dataset_class: Type[AbstractContrastiveDataset] = PassthroughDataset,
         spec_mgr_class: Type[SpecialStateManager] = None,
         spec_model_wrapper_class: Type[nn.Module] = SpecialStateModelWrapper,
         ve_class: Type[ValueEstimator] = ValueEstimator,
@@ -49,7 +46,6 @@ class TimingJob(AbstractJob):
 
         sim_fn = get_similarity_measure(measure=metric_name, normalize=normalize)
         spec_mgr = spec_mgr_class(device=self.device) if spec_mgr_class is not None else None
-        spec_mgr_param = {'spec_mgr': spec_mgr} if spec_mgr is not None else {}
 
         base_model = base_model_class(embed_dim=embed_dim)
         self.model = (
@@ -59,10 +55,10 @@ class TimingJob(AbstractJob):
         ).to(self.device)
 
         self.dataset = dataset_class(
-            file_sets_path=dataset_path, device=self.device, **spec_mgr_param
+            file_sets_path=dataset_path, device=self.device, spec_mgr=spec_mgr
         )
 
-        self.env = env_class(device=self.device, **spec_mgr_param)
+        self.env = env_class(device=self.device, spec_mgr=spec_mgr)
         self.ve = ve_class(model=self.model, sim_fn=sim_fn, device=self.device)
         self.n_starting, self.repeats = n_starting, repeats
 

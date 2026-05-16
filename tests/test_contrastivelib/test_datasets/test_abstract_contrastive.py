@@ -4,19 +4,11 @@ import joblib
 import numpy as np
 import pytest
 import torch
-from tensordict import TensorDict
 from torch.testing import assert_close
 
 from src.common import fix_seed
-from src.contrastivelib.datasets.abstract_contrastive import AbstractContrastiveDataset
+from src.contrastivelib.datasets import PassthroughDataset
 from src.contrastivelib.utils.special import SpecialStateManager
-
-
-class _PassthroughDataset(AbstractContrastiveDataset):
-    """Concrete subclass that returns input data as-is."""
-
-    def contrastive_pick(self, **kwargs):
-        return TensorDict(kwargs), TensorDict({})
 
 
 def _sort_dict_by_key(tensors, sort_key):
@@ -98,7 +90,7 @@ class TestAbstractContrastiveFileLoading:
     def test_init_success(self, data_dirs, device_fx, file_path, tensor_names, success, chunk_size):
         """Tests that initialization succeeds or fails based on file availability."""
         if success:
-            _PassthroughDataset(
+            PassthroughDataset(
                 file_sets_path=data_dirs[file_path],
                 tensor_names=tensor_names,
                 device=device_fx,
@@ -106,7 +98,7 @@ class TestAbstractContrastiveFileLoading:
             )
         else:
             with pytest.raises(AssertionError):
-                _PassthroughDataset(
+                PassthroughDataset(
                     file_sets_path=data_dirs[file_path],
                     tensor_names=tensor_names,
                     device=device_fx,
@@ -122,7 +114,7 @@ class TestAbstractContrastiveFileLoading:
     )
     def test_file_paths(self, data_dirs, file_path, tensor_names, expected_count):
         """Tests that _get_all_file_names discovers the correct file sets and paths."""
-        dataset = _PassthroughDataset(
+        dataset = PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=tensor_names,
             device='cpu',
@@ -147,7 +139,7 @@ class TestAbstractContrastiveFileLoading:
         Tests that get_random_starting_positions returns
         starting states of k random trajectories from the same file.
         """
-        dataset = _PassthroughDataset(
+        dataset = PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=[],
             device=device_fx,
@@ -200,7 +192,7 @@ class TestAbstractContrastiveFileLoading:
             f'trajectory_{i}' for (i, j) in used_indices
         ]
 
-        dataset = _PassthroughDataset(
+        dataset = PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=['lengths'],
             device=device_fx,
@@ -226,7 +218,7 @@ class TestAbstractContrastiveFileLoading:
         Tests that get_random_trajectory_data returns k trajectories
         that exist in the source data.
         """
-        dataset = _PassthroughDataset(
+        dataset = PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=['lengths'],
             device=device_fx,
@@ -252,7 +244,7 @@ class TestAbstractContrastiveFileLoading:
     @pytest.mark.parametrize('chunk_size', [1, 2])
     def test_get_batches_per_epoch(self, data_dirs, file_path, tensor_names, chunk_size):
         """Tests if the get_batches_per_epoch() method is true to it's name"""
-        dataset = _PassthroughDataset(
+        dataset = PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=tensor_names,
             device='cpu',
@@ -271,7 +263,7 @@ class TestAbstractContrastiveFileLoading:
     )
     def test_iter_count(self, data_dirs, file_path, tensor_names, chunk_size, expected_iterations):
         """Tests that the dataset yields the correct number of batches."""
-        dataset = _PassthroughDataset(
+        dataset = PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=tensor_names,
             device='cpu',
@@ -288,7 +280,7 @@ class TestAbstractContrastiveFileLoading:
     )
     def test_iter_results(self, data_dirs, device_fx, file_path, tensor_names, chunk_size):
         """Tests that concatenated iteration output matches the original source data."""
-        dataset = _PassthroughDataset(
+        dataset = PassthroughDataset(
             file_sets_path=data_dirs[file_path],
             tensor_names=tensor_names,
             device=device_fx,
