@@ -40,7 +40,7 @@ class ContrastiveDatasetWeightedSpecial(AbstractContrastiveDataset):
         self, trajectories: torch.Tensor, lengths: torch.Tensor
     ) -> Tuple[TensorDict, TensorDict]:
         trajectories = torch.repeat_interleave(trajectories, self.repetition_factor, dim=0)
-        lengths = torch.repeat_interleave(lengths, self.repetition_factor, dim=0)
+        lengths = torch.repeat_interleave(lengths.to(torch.long), self.repetition_factor, dim=0)
         spec_states = self.spec_mgr.create_many(len(trajectories)).to(trajectories.dtype)
         batch_idx = torch.arange(len(trajectories), device=self.device)
 

@@ -36,7 +36,7 @@ class ContrastiveDatasetNoSpecial(AbstractContrastiveDataset):
         self, trajectories: torch.Tensor, lengths: torch.Tensor
     ) -> Tuple[TensorDict, TensorDict]:
         trajectories = torch.repeat_interleave(trajectories, self.repetition_factor, dim=0)
-        lengths = torch.repeat_interleave(lengths, self.repetition_factor, dim=0)
+        lengths = torch.repeat_interleave(lengths.to(torch.long), self.repetition_factor, dim=0)
         batch_idx = torch.arange(len(trajectories), device=self.device)
 
         t0 = self.sampler.bounded_uniform(lengths - 1)

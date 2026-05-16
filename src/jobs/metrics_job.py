@@ -18,6 +18,7 @@ from src.envs.maze.colorful import VectorizedColorfulMaze
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.envs.visual import get_embed_plots, get_trajectory_gifs
+from src.jobs.solved_rate_job import SolvedRateJob
 from src.jobs.utils.logging import (
     AbstractLogger,
     BestValOsLogger,
@@ -46,10 +47,10 @@ class MetricsJob:
         logger_class: Type[AbstractLogger],
         sim_fn: SimilarityMeasure,
         spec_mgr_param: Dict[str, SpecialStateManager] = {},
+        solved_rate_job_class: Type[SolvedRateJob] = SolvedRateJob,
         gin_config: Dict[str, str] = None,
         checkpoint_dir: str = 'checkpoints',
         checkpoint_models: str = 'dont',  # one of 'dont', 'local', 'log'
-        solve_attempts: int = 1024,
         n_gifs: int = 0,
         gif_max_len: int = None,
         n_embed_plots: int = 0,
@@ -70,15 +71,17 @@ class MetricsJob:
         self.env = env_class(device=device, **spec_mgr_param)
         self.ve = ve_class(model=self.model, sim_fn=sim_fn, device=self.device)
 
-        self.solve_attempts = solve_attempts
         self.checkpoint_models = checkpoint_models
         self.n_gifs, self.gif_max_len = n_gifs, gif_max_len
         self.n_embed_plots, self.embed_plot_max_len = n_embed_plots, embed_plot_max_len
         self.epoch_dir = ''
 
-        self.starting = self.validset.get_random_starting_positions(
-            k=self.solve_attempts,
-            device=torch.device('cpu'),
+        self.solved_rate_job = solved_rate_job_class(
+            device=self.device,
+            env=self.env,
+            ve=self.ve,
+            print_solved_rates=False,
+            dataset=self.validset,
         )
 
     def _get_epoch_dir(self, epoch: int) -> str:
@@ -101,8 +104,12 @@ class MetricsJob:
 
     @metric_action('solved_rate')
     def measure_solved_rate(self, epoch: int) -> Dict[str, float]:
-        """Simulates solving attempts (no search) with the current model. Returns the solved rate"""
-        return eval_no_search(self.starting.to(self.device), self.env, self.ve)
+        """
+        Simulates solving attempts (no search) with the current model.
+        Returns the solved rates for starting configurations,
+        specified when constructing the SolvedRateJob instance.
+        """
+        return self.solved_rate_job.execute()
 
     @metric_action('state_dict', measure_time=False)
     def save_checkpoint(self, epoch: int) -> None:
