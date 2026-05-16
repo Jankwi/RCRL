@@ -21,22 +21,25 @@ def eval_no_search(
 
     states = storage.active_states()
     while storage.continue_condition():
-        best_next = states.clone()
-        best_val = ve.get_inf((states.shape[0],))
+        n = states.shape[0]
+        next_boards, legality = env.preview_all_actions(states)
+        k = next_boards.shape[1]
 
-        for action in env.actions():
-            next_board, legality = env.preview_action(states.clone(), action)
+        valid = legality & storage.wasnt_visited_batched(next_boards, legality)
+        flat_valid = valid.reshape(n * k)
 
-            valid_mask = legality & storage.wasnt_visited(next_board)
-            next_val = ve.get_inf((states.shape[0],))
-            if valid_mask.any():
-                next_val[valid_mask] = ve.get_solved_distance(
-                    next_board[valid_mask], storage.active_goals()[valid_mask]
-                )
+        flat_next = next_boards.reshape(n * k, *next_boards.shape[2:])
+        flat_goals = storage.active_goals().repeat_interleave(k, dim=0)
 
-            new_candidate = valid_mask & (next_val < best_val)
-            best_next[new_candidate] = next_board[new_candidate]
-            best_val[new_candidate] = next_val[new_candidate]
+        flat_vals = ve.get_inf((n * k,))
+        if flat_valid.any():
+            flat_vals[flat_valid] = ve.get_solved_distance(
+                flat_next[flat_valid], flat_goals[flat_valid]
+            )
+
+        vals = flat_vals.reshape(n, k)
+        best_val, best_idx = vals.min(dim=1)
+        best_next = next_boards[torch.arange(n, device=states.device), best_idx]
 
         storage.process_chosen_moves(best_next, ~ve.which_inf(best_val))
         states = storage.active_states()

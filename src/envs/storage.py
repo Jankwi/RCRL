@@ -63,6 +63,26 @@ class AbstractStateStorage(ABC):
     def wasnt_visited(self, candidates: torch.Tensor) -> torch.Tensor:
         return self.sets.missing_from_sets(candidates, self.active_idx)
 
+    def wasnt_visited_batched(
+        self, candidates: torch.Tensor, validity: torch.Tensor
+    ) -> torch.Tensor:
+        """Batched per-action check: candidates [n, k, *state_shape], validity [n, k] → [n, k] bool.
+
+        Only valid entries are sent to the state set, so corrupted illegal-move boards
+        (e.g. maze previews) never reach `missing_from_sets`.
+        """
+        n, k = candidates.shape[0], candidates.shape[1]
+        flat = candidates.reshape(n * k, *candidates.shape[2:])
+        flat_valid = validity.reshape(n * k)
+        repeated_idx = self.active_idx.repeat_interleave(k)
+
+        result = torch.zeros(n * k, dtype=torch.bool, device=candidates.device)
+        if flat_valid.any():
+            result[flat_valid] = self.sets.missing_from_sets(
+                flat[flat_valid], repeated_idx[flat_valid]
+            )
+        return result.reshape(n, k)
+
     def _get_solved_rate(self) -> Dict[str, float]:
         return {
             'solved_rate': self.solved_cnt / self.n_games,

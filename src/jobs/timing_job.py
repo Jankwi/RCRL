@@ -76,14 +76,16 @@ class TimingJob(AbstractJob):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
+        self.model.eval()
         starting = self.dataset.get_random_starting_positions(self.n_starting)
         start_time = perf_counter()
-        for _ in range(self.repeats):
-            eval_no_search(
-                env=self.env,
-                ve=self.ve,
-                states=starting,
-            )
+        with torch.inference_mode():
+            for _ in range(self.repeats):
+                eval_no_search(
+                    env=self.env,
+                    ve=self.ve,
+                    states=starting,
+                )
         end_time = perf_counter()
         print(f'Evaluation of {self.repeats} runs for {self.n_starting} states finished')
         print(f'Total eval time: {end_time - start_time:.4f} seconds')
