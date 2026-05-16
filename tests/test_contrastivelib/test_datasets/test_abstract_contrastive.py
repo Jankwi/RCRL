@@ -158,6 +158,44 @@ class TestAbstractContrastiveFileLoading:
             for file_starts in all_file_starts
         )
 
+    @pytest.mark.parametrize(
+        'file_path, k, i',
+        [
+            ('traj_len', 1, 0),
+            ('traj_len', 1, 1),
+            ('traj_len_abs', 1, 0),
+            ('traj_len_abs', 2, 0),
+            ('traj_len_abs', 2, 1),
+        ],
+    )
+    @pytest.mark.parametrize('chunk_size', [1, 2])
+    def test_get_random_ith_last_positions(self, data_dirs, file_path, k, i, device_fx, chunk_size):
+        """
+        Tests that get_random_ith_last_positions returns
+        i-th-from-last states of k random trajectories from the same file.
+        """
+        tensor_names = ['lengths'] if file_path == 'traj_len' else ['lengths', 'abstract']
+        dataset = PassthroughDataset(
+            file_sets_path=data_dirs[file_path],
+            tensor_names=tensor_names,
+            device=device_fx,
+            chunk_size=chunk_size,
+        )
+        result = dataset.get_random_ith_last_positions(k=k, i=i)
+
+        all_file_ith_lasts = []
+        for file_set in dataset.file_sets:
+            trajs = torch.from_numpy(joblib.load(file_set['trajectories'])).to(device_fx)
+            lens = torch.from_numpy(joblib.load(file_set['lengths'])).to(torch.long).to(device_fx)
+            time_idx = (lens - 1 - i).clamp_min(0)
+            all_file_ith_lasts.append(trajs[torch.arange(len(trajs)), time_idx])
+
+        assert result.shape == (k, *all_file_ith_lasts[0].shape[1:])
+        assert any(
+            all(any(torch.equal(s, fs) for fs in file_ends) for s in result)
+            for file_ends in all_file_ith_lasts
+        )
+
     @pytest.mark.parametrize('file_path', ['traj_len_abs'])
     @pytest.mark.parametrize('with_spec_mgr', [False, True])
     @pytest.mark.parametrize('last_n', [1, None])

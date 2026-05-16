@@ -5,6 +5,7 @@ import gin
 
 from src.common import fix_seed
 from src.jobs import AbstractJob
+from src.jobs.solved_rate_job import *  # noqa: F403
 from src.jobs.timing_job import *  # noqa: F403
 from src.jobs.train_job import *  # noqa: F403
 from src.jobs.validation_job import *  # noqa: F403

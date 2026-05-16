@@ -84,6 +84,29 @@ class AbstractContrastiveDataset(IterableDataset):
         indices = torch.randperm(len(trajectories))[:k]
         return trajectories[indices, 0].clone().to(device if device is not None else self.device)
 
+    def get_random_ith_last_positions(
+        self, k: int, i: int, device: torch.device = None, use_preloaded: bool = True
+    ) -> torch.Tensor:
+        """Samples starting positions from random k trajectories from a random file"""
+        if use_preloaded and hasattr(self, 'preloaded'):
+            trajectories = self.preloaded[self.master_tn]
+            lengths = self.preloaded['lengths'].to(torch.long)
+        else:
+            file_set = random.choice(self.file_sets)
+            trajectories = self._load_tensor(file_set[self.master_tn])
+            lengths = self._load_tensor(file_set['lengths']).to(torch.long)
+
+        assert len(trajectories) >= k
+        indices = torch.randperm(len(trajectories))[:k]
+        trajectories, lengths = trajectories[indices], lengths[indices]
+
+        time_idx = (lengths - 1 - i).clamp_min(0)
+        return (
+            trajectories[torch.arange(k), time_idx]
+            .clone()
+            .to(device if device is not None else self.device)
+        )
+
     def get_random_trajectory_ends(
         self, k: int, last_n: int = None, use_preloaded: bool = True
     ) -> Tuple[torch.Tensor, List[str]]:
@@ -152,6 +175,10 @@ class AbstractContrastiveDataset(IterableDataset):
     @contextmanager
     def preload_file_set(self, file_set: str = None) -> Iterator[None]:
         """Loads and caches a file_set to be used by get_random_* methods"""
+        if hasattr(self, 'preloaded'):
+            yield
+            return
+
         file_set = file_set if file_set is not None else random.choice(self.file_sets)
         self.preloaded_prefix = file_set['_prefix']
         self.preloaded, self.preloaded_batches = self._load_file_set(file_set=file_set)
