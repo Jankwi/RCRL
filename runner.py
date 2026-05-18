@@ -22,7 +22,12 @@ def gin_config_to_dict(config_str: str) -> Dict[str, str]:
 
 
 @gin.configurable
-def run(seed: int, job_class: Type[AbstractJob], gin_config: Dict[str, str]):
+def run(
+    seed: int,
+    job_class: Type[AbstractJob],
+    gin_config: Dict[str, str],
+    run_name: str = 'no name set',
+):
     fix_seed(seed)
     job = job_class(gin_config=gin_config)
     job.execute()

@@ -53,7 +53,7 @@ class MetricsJob:
         checkpoint_models: str = 'dont',  # one of 'dont', 'local', 'log'
         n_gifs: int = 0,
         gif_max_len: int = None,
-        n_embed_plots: int = 0,
+        n_embed_trajs: int = 0,
         embed_plot_max_len: int = 20,
     ) -> None:
         self.checkpoint_dir = checkpoint_dir
@@ -73,7 +73,7 @@ class MetricsJob:
 
         self.checkpoint_models = checkpoint_models
         self.n_gifs, self.gif_max_len = n_gifs, gif_max_len
-        self.n_embed_plots, self.embed_plot_max_len = n_embed_plots, embed_plot_max_len
+        self.n_embed_trajs, self.embed_plot_max_len = n_embed_trajs, embed_plot_max_len
         self.epoch_dir = ''
 
         self.solved_rate_job = solved_rate_job_class(
@@ -143,11 +143,11 @@ class MetricsJob:
     @metric_action('plot_embeds')
     def plot_trajectory_embeddings(self, epoch: int) -> None:
         """Creates and stores a t-SNE projection plot for trajectory-end embeddings."""
-        if self.n_embed_plots == 0:
+        if self.n_embed_trajs == 0:
             return
 
         tensors, labels = self.validset.get_random_trajectory_ends(
-            self.n_embed_plots,
+            self.n_embed_trajs,
             self.embed_plot_max_len,
         )
         embeds = self.model(tensors)
