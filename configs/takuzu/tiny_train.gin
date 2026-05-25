@@ -1,5 +1,7 @@
 run.seed = 67
 run.run_name = 'takuzu tiny train'
+run.run_family = 'training'
+run.tags = ['takuzu', 'train', 'tiny']
 run.job_class = @TrainJob
     TrainJob.embed_dim = 64
     TrainJob.metric_name = 'L2'

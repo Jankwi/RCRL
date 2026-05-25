@@ -1,5 +1,5 @@
 import argparse
-from typing import Dict, Type
+from typing import Dict, List, Type
 
 import gin
 
@@ -27,6 +27,8 @@ def run(
     job_class: Type[AbstractJob],
     gin_config: Dict[str, str],
     run_name: str = 'no name set',
+    run_family: str = 'undeclared',
+    tags: List[str] = [],
 ):
     fix_seed(seed)
     job = job_class(gin_config=gin_config)
