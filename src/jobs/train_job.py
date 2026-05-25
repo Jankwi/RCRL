@@ -14,7 +14,7 @@ from src.contrastivelib.datasets import (
     ContrastiveDatasetSpecialPadding,
     ContrastiveDatasetWeightedSpecial,
 )
-from src.contrastivelib.metrics.losses import AbstractContrastiveLoss
+from src.contrastivelib.metrics.losses import AbstractContrastiveLoss, MetricAccumulator
 from src.contrastivelib.metrics.sims import get_similarity_measure
 from src.contrastivelib.networks import BroNet, ConvNet, Embedding2D, LNConvNet, LNDenseNet
 from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
@@ -46,6 +46,7 @@ class TrainJob(AbstractJob):
         epochs: int = None,
         lr: float = 0.001,
         update_steps: int = None,
+        append_loss_metrics: bool = True,
     ) -> None:
         if not ((epochs is None) ^ (update_steps is None)):
             raise ValueError(f'Exactly one of {epochs=} and {update_steps=} has to be set')
@@ -73,6 +74,7 @@ class TrainJob(AbstractJob):
             else math.ceil(update_steps / self.trainset.get_batches_per_epoch())
         )
 
+        self.append_loss_metrics = append_loss_metrics
         self.metrics_job = metrics_job_class(
             epochs=epochs,
             device=self.device,
@@ -91,23 +93,26 @@ class TrainJob(AbstractJob):
         self.model.train()
 
         for epoch in tqdm(range(self.epochs)):
-            train_loss_sum = torch.tensor([0.0], device=self.device)
+            train_acc = MetricAccumulator()
 
             for states, extras in self.trainset:
                 self.optimizer.zero_grad()
 
                 states_repr = states.apply(self.model)
-                loss = self.loss_fn(**states_repr, **extras)
+                loss, metrics = self.loss_fn(
+                    **states_repr,
+                    **extras,
+                    append_metrics=self.append_loss_metrics,
+                    append_empty=True,
+                )
 
                 loss.backward()
                 self.optimizer.step()
 
                 with torch.no_grad():
-                    train_loss_sum += loss
+                    train_acc.update({'loss': loss.item()} | metrics)
 
             with torch.inference_mode():
-                self.metrics_job.execute(
-                    epoch, train_loss_sum.cpu().item() / self.trainset.get_batches_per_epoch()
-                )
+                self.metrics_job.execute(epoch, train_acc.average(prefix='train'))
 
         self.metrics_job.finish_run()

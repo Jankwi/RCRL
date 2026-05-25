@@ -9,7 +9,7 @@ import torch.nn as nn
 
 from src.contrastivelib.datasets import AbstractContrastiveDataset
 from src.contrastivelib.metrics.estimation import ManyGoalsValueEstimator, SingleGoalValueEstimator
-from src.contrastivelib.metrics.losses import AbstractContrastiveLoss
+from src.contrastivelib.metrics.losses import AbstractContrastiveLoss, MetricAccumulator
 from src.contrastivelib.metrics.sims import SimilarityMeasure
 from src.contrastivelib.utils.special import SpecialStateManager
 from src.envs import ValueEstimator, VectorizedEnvironment
@@ -55,6 +55,7 @@ class MetricsJob:
         gif_max_len: int = None,
         n_embed_trajs: int = 0,
         embed_plot_max_len: int = 20,
+        append_loss_metrics: bool = True,
     ) -> None:
         self.checkpoint_dir = checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
@@ -74,6 +75,7 @@ class MetricsJob:
         self.checkpoint_models = checkpoint_models
         self.n_gifs, self.gif_max_len = n_gifs, gif_max_len
         self.n_embed_trajs, self.embed_plot_max_len = n_embed_trajs, embed_plot_max_len
+        self.append_loss_metrics = append_loss_metrics
         self.epoch_dir = ''
 
         self.solved_rate_job = solved_rate_job_class(
@@ -93,14 +95,19 @@ class MetricsJob:
     @metric_action('valid_loss')
     def measure_valid_loss(self, epoch: int) -> Dict[str, float]:
         """Completes a full sweep of the validation data set, and computes the loss function"""
-        valid_loss = torch.tensor([0.0], device=self.device)
+        acc = MetricAccumulator()
 
         for states, extras in self.validset:
             states_repr = states.apply(self.model)
-            loss = self.loss_fn(**states_repr, **extras)
-            valid_loss += loss
+            loss, metrics = self.loss_fn(
+                **states_repr,
+                **extras,
+                append_metrics=self.append_loss_metrics,
+                append_empty=True,
+            )
+            acc.update({'loss': loss.item()} | metrics)
 
-        return {'valid_loss': valid_loss.cpu().item() / self.validset.get_batches_per_epoch()}
+        return acc.average(prefix='valid')
 
     @metric_action('solved_rate')
     def measure_solved_rate(self, epoch: int) -> Dict[str, float]:
@@ -159,7 +166,7 @@ class MetricsJob:
 
         self.logger.log_image(epoch, {'trajectory-embeddings': filename}, format='png')
 
-    def execute(self, epoch: int, avg_train_loss: float) -> None:
+    def execute(self, epoch: int, train_metrics: Dict[str, float] = {}) -> None:
         if not self.logger.is_log_epoch(epoch):
             return
 
@@ -170,7 +177,7 @@ class MetricsJob:
             self.logger.log_metrics(
                 epoch,
                 (
-                    {'train_loss': avg_train_loss}
+                    train_metrics
                     | self.create_trajectory_gifs(epoch)
                     | self.plot_trajectory_embeddings(epoch)
                     | self.measure_valid_loss(epoch)
