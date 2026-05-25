@@ -4,8 +4,10 @@ from typing import Dict, Type
 
 import gin
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
+from scipy.stats import spearmanr
 
 from src.contrastivelib.datasets import AbstractContrastiveDataset
 from src.contrastivelib.metrics.estimation import ManyGoalsValueEstimator, SingleGoalValueEstimator
@@ -55,6 +57,7 @@ class MetricsJob:
         gif_max_len: int = None,
         n_embed_trajs: int = 0,
         embed_plot_max_len: int = 20,
+        n_corr_trajs: int = 128,
         append_loss_metrics: bool = True,
     ) -> None:
         self.checkpoint_dir = checkpoint_dir
@@ -75,6 +78,7 @@ class MetricsJob:
         self.checkpoint_models = checkpoint_models
         self.n_gifs, self.gif_max_len = n_gifs, gif_max_len
         self.n_embed_trajs, self.embed_plot_max_len = n_embed_trajs, embed_plot_max_len
+        self.n_corr_trajs = n_corr_trajs
         self.append_loss_metrics = append_loss_metrics
         self.epoch_dir = ''
 
@@ -108,6 +112,30 @@ class MetricsJob:
             acc.update({'loss': loss.item()} | metrics)
 
         return acc.average(prefix='valid')
+
+    @metric_action('correlation')
+    def measure_monotonicity_correlation(self, epoch: int) -> Dict[str, float]:
+        """
+        Draws random trajectories and measures the Spearman rank correlation
+        between predicted distances-to-goal and temporal order.
+        A high correlation indicates the embedding orders states monotonically.
+        """
+        if self.n_corr_trajs == 0:
+            return {}
+
+        data = self.validset.get_random_trajectory_data(k=self.n_corr_trajs)
+        trajectories = data[self.validset.master_tn]  # (n, T, state)
+        lengths = data['lengths'].long()  # (n,)
+
+        correlations = []
+        for traj, length in zip(trajectories, lengths):
+            length = length.item()
+            traj = traj[:length]  # (L, state)
+            goal = traj[-1].unsqueeze(0).expand_as(traj[:-1])  # (L-1, *state)
+            dist = self.ve.get_solved_distance(traj[:-1], goal).cpu().numpy()  # (L-1,)
+            correlations.append(-spearmanr(dist, np.arange(length - 1)).statistic)
+
+        return {'correlation': float(np.mean(correlations))}
 
     @metric_action('solved_rate')
     def measure_solved_rate(self, epoch: int) -> Dict[str, float]:
@@ -182,6 +210,7 @@ class MetricsJob:
                     | self.plot_trajectory_embeddings(epoch)
                     | self.measure_valid_loss(epoch)
                     | self.measure_solved_rate(epoch)
+                    | self.measure_monotonicity_correlation(epoch)
                 ),
             )
 
