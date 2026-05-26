@@ -59,16 +59,19 @@ class BaselineContrastiveLoss(AbstractContrastiveLoss):
         append_metrics: bool = False,
         append_empty: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, Dict[str, float]]:
-        exp_sims = self._get_exp_sim(psi_0, psi_T, 'cross')
-        loss = -torch.log(exp_sims.diagonal() / exp_sims.sum(dim=1)).mean()
+        # Compute raw similarities without `.exp()` for numerical stability
+        sims = self.sim_fn(psi_0, psi_T, 'cross') / self.tau
+        # log-sum-exp trick avoids NaN from overflow/underflow
+        loss = (-sims.diagonal() + torch.logsumexp(sims, dim=1)).mean()
+
         if not (append_metrics or append_empty):
             return loss
         metrics = {}
         if append_metrics:
             with torch.no_grad():
-                n = exp_sims.shape[0]
+                n = sims.shape[0]
                 correct = (
-                    (exp_sims.argmax(dim=1) == torch.arange(n, device=exp_sims.device))
+                    (sims.argmax(dim=1) == torch.arange(n, device=sims.device))
                     .float()
                     .mean()
                 )
