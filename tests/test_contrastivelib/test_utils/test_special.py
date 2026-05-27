@@ -193,3 +193,22 @@ class TestSpecialStateModelWrapper:
 
         result = model(states)
         assert_close(result, expected)
+
+    @pytest.mark.parametrize('embed_dim, data_dim, n_samples', [(3, 3, 10)])
+    def test_non_empty(self, device_fx, embed_dim, data_dim, n_samples):
+        """Tests that empty input isn't passed into the base model"""
+
+        class EmptyForwardHater(nn.Module):
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                batch = len(x)
+                assert batch > 0, 'How dare you?'
+                return torch.zeros((batch, embed_dim), dtype=torch.float, device=device_fx)
+
+        base_model = EmptyForwardHater()
+        shape = (data_dim,)
+        spec_mgr = SpecialStateManager(val=self.val, shape=shape, device=device_fx)
+        model = SpecialStateModelWrapper(
+            base_model, spec_mgr, embed_dim, trainable_special=False
+        ).to(device_fx)
+
+        model(torch.full(size=(n_samples, data_dim), fill_value=self.val, device=device_fx))
