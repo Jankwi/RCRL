@@ -70,11 +70,7 @@ class BaselineContrastiveLoss(AbstractContrastiveLoss):
         if append_metrics:
             with torch.no_grad():
                 n = sims.shape[0]
-                correct = (
-                    (sims.argmax(dim=1) == torch.arange(n, device=sims.device))
-                    .float()
-                    .mean()
-                )
+                correct = (sims.argmax(dim=1) == torch.arange(n, device=sims.device)).float().mean()
             metrics = {'contrastive_accuracy': correct.item()}
         return loss, metrics
 

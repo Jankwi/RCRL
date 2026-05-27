@@ -77,7 +77,11 @@ def metric_action(name: str, measure_time: bool = True) -> Callable[[Callable], 
             if measure_time:
                 elapsed_time = time.perf_counter() - start_time
                 result = {} if result is None else result
-                result[f'{name}_execution_time_seconds'] = elapsed_time
+                prefix = kwargs.get('split', '')
+                if prefix:
+                    result[f'{prefix}_{name}_execution_time_seconds'] = elapsed_time
+                else:
+                    result[f'{name}_execution_time_seconds'] = elapsed_time
             return result
 
         return wrapper

@@ -30,6 +30,9 @@ from src.jobs.utils.logging import (
     metric_action,
 )
 
+_VALID_STR = 'valid'
+_TRAIN_STR = 'train'
+
 
 @gin.configurable
 class MetricsJob:
@@ -42,6 +45,7 @@ class MetricsJob:
         optimizer: nn.Module,
         validset_path: str,
         validset_class: Type[AbstractContrastiveDataset],
+        trainset: AbstractContrastiveDataset,
         loss_fn: AbstractContrastiveLoss,
         device: torch.device,
         ve_class: Type[ValueEstimator],
@@ -59,6 +63,7 @@ class MetricsJob:
         embed_plot_max_len: int = 20,
         n_corr_trajs: int = 128,
         append_loss_metrics: bool = True,
+        metrics_on_trainset: bool = True,
     ) -> None:
         self.checkpoint_dir = checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
@@ -67,10 +72,17 @@ class MetricsJob:
         self.model, self.optimizer = model, optimizer
         self.device = device
 
+        self.metrics_on_trainset = metrics_on_trainset
+        if metrics_on_trainset:
+            assert trainset is not None, 'trainset must be provided if metrics_on_trainset is True'
+
         self.loss_fn = loss_fn
-        self.validset = validset_class(
+        self.datasets: Dict[str, AbstractContrastiveDataset] = {}
+        self.datasets[_VALID_STR] = validset_class(
             file_sets_path=validset_path, device=self.device, **spec_mgr_param
         )
+        if metrics_on_trainset:
+            self.datasets[_TRAIN_STR] = trainset
 
         self.env = env_class(device=device, **spec_mgr_param)
         self.ve = ve_class(model=self.model, sim_fn=sim_fn, device=self.device)
@@ -82,13 +94,24 @@ class MetricsJob:
         self.append_loss_metrics = append_loss_metrics
         self.epoch_dir = ''
 
-        self.solved_rate_job = solved_rate_job_class(
+        self.solved_rate_job = {}
+
+        self.solved_rate_job[_VALID_STR] = solved_rate_job_class(
             device=self.device,
             env=self.env,
             ve=self.ve,
             print_solved_rates=False,
-            dataset=self.validset,
+            dataset=self.datasets[_VALID_STR],
         )
+
+        if self.metrics_on_trainset:
+            self.solved_rate_job[_TRAIN_STR] = solved_rate_job_class(
+                device=self.device,
+                env=self.env,
+                ve=self.ve,
+                print_solved_rates=False,
+                dataset=self.datasets[_TRAIN_STR],
+            )
 
     def _get_epoch_dir(self, epoch: int) -> str:
         epoch_dir = f'{self.checkpoint_dir}/{epoch}/'
@@ -101,7 +124,7 @@ class MetricsJob:
         """Completes a full sweep of the validation data set, and computes the loss function"""
         acc = MetricAccumulator()
 
-        for states, extras in self.validset:
+        for states, extras in self.datasets[_VALID_STR]:
             states_repr = states.apply(self.model)
             loss, metrics = self.loss_fn(
                 **states_repr,
@@ -111,10 +134,10 @@ class MetricsJob:
             )
             acc.update({'loss': loss.item()} | metrics)
 
-        return acc.average(prefix='valid')
+        return acc.average(prefix=_VALID_STR)
 
     @metric_action('correlation')
-    def measure_monotonicity_correlation(self, epoch: int) -> Dict[str, float]:
+    def measure_monotonicity_correlation(self, epoch: int, split: str) -> Dict[str, float]:
         """
         Draws random trajectories and measures the Spearman rank correlation
         between predicted distances-to-goal and temporal order.
@@ -123,8 +146,8 @@ class MetricsJob:
         if self.n_corr_trajs == 0:
             return {}
 
-        data = self.validset.get_random_trajectory_data(k=self.n_corr_trajs)
-        trajectories = data[self.validset.master_tn]  # (n, T, state)
+        data = self.datasets[split].get_random_trajectory_data(k=self.n_corr_trajs)
+        trajectories = data[self.datasets[split].master_tn]  # (n, T, state)
         lengths = data['lengths'].long()  # (n,)
 
         correlations = []
@@ -135,16 +158,17 @@ class MetricsJob:
             dist = self.ve.get_solved_distance(traj[:-1], goal).cpu().numpy()  # (L-1,)
             correlations.append(-spearmanr(dist, np.arange(length - 1)).statistic)
 
-        return {'correlation': float(np.mean(correlations))}
+        return {f'{split}_correlation': float(np.mean(correlations))}
 
     @metric_action('solved_rate')
-    def measure_solved_rate(self, epoch: int) -> Dict[str, float]:
+    def measure_solved_rate(self, epoch: int, split: str) -> Dict[str, float]:
         """
         Simulates solving attempts (no search) with the current model.
         Returns the solved rates for starting configurations,
         specified when constructing the SolvedRateJob instance.
         """
-        return self.solved_rate_job.execute()
+        res = self.solved_rate_job[split].execute()
+        return {f'{split}_{k}': v for k, v in res.items()}
 
     @metric_action('state_dict', measure_time=False)
     def save_checkpoint(self, epoch: int) -> None:
@@ -158,41 +182,41 @@ class MetricsJob:
                 self.logger.log_state_dicts(epoch, {'model': model_path, 'optimizer': optim_path})
 
     @metric_action('gif')
-    def create_trajectory_gifs(self, epoch: int) -> None:
+    def create_trajectory_gifs(self, epoch: int, split: str) -> None:
         """Creates gifs, with subsequent frames depicting subsequent trajectory states"""
         if self.n_gifs == 0:
             return
 
-        starting = self.validset.get_random_starting_positions(k=self.n_gifs)
+        starting = self.datasets[split].get_random_starting_positions(k=self.n_gifs)
         materials = get_trajectory_gifs(starting, self.env, self.ve, self.gif_max_len)
         dir = f'{self._get_epoch_dir(epoch)}/gifs'
         os.makedirs(dir, exist_ok=True)
 
         gifs_dict: Dict[str, str] = {}
         for i, frames in enumerate(materials):
-            filename = f'{dir}/trajectory-{i}.gif'
+            filename = f'{dir}/trajectory-{split}-{i}.gif'
             frames[0].save(filename, save_all=True, append_images=frames[1:], duration=200, loop=0)
-            gifs_dict[f'trajectory-{i}-gif'] = filename
+            gifs_dict[f'{split}_trajectory-{i}-gif'] = filename
         self.logger.log_gifs(epoch, gifs_dict)
 
     @metric_action('plot_embeds')
-    def plot_trajectory_embeddings(self, epoch: int) -> None:
+    def plot_trajectory_embeddings(self, epoch: int, split: str) -> None:
         """Creates and stores a t-SNE projection plot for trajectory-end embeddings."""
         if self.n_embed_trajs == 0:
             return
 
-        tensors, labels = self.validset.get_random_trajectory_ends(
+        tensors, labels = self.datasets[split].get_random_trajectory_ends(
             self.n_embed_trajs,
             self.embed_plot_max_len,
         )
         embeds = self.model(tensors)
 
         fig = get_embed_plots(embeds, labels)
-        filename = f'{self._get_epoch_dir(epoch)}/trajectory-embeddings.png'
+        filename = f'{self._get_epoch_dir(epoch)}/trajectory-embeddings-{split}.png'
         fig.savefig(filename, bbox_inches='tight', pad_inches=0.1)
         plt.close(fig)
 
-        self.logger.log_image(epoch, {'trajectory-embeddings': filename}, format='png')
+        self.logger.log_image(epoch, {f'{split}_trajectory-embeddings': filename}, format='png')
 
     def execute(self, epoch: int, train_metrics: Dict[str, float] = {}) -> None:
         if not self.logger.is_log_epoch(epoch):
@@ -201,18 +225,21 @@ class MetricsJob:
         self.model.eval()
         self.save_checkpoint(epoch)
 
-        with self.validset.preload_file_set():
-            self.logger.log_metrics(
-                epoch,
-                (
-                    train_metrics
-                    | self.create_trajectory_gifs(epoch)
-                    | self.plot_trajectory_embeddings(epoch)
-                    | self.measure_valid_loss(epoch)
-                    | self.measure_solved_rate(epoch)
-                    | self.measure_monotonicity_correlation(epoch)
-                ),
-            )
+        metrics = train_metrics.copy()
+
+        if self.metrics_on_trainset:
+            with self.datasets[_TRAIN_STR].preload_file_set():
+                metrics |= self.measure_solved_rate(epoch, split=_TRAIN_STR)
+                metrics |= self.measure_monotonicity_correlation(epoch, split=_TRAIN_STR)
+
+        with self.datasets[_VALID_STR].preload_file_set():
+            metrics |= self.create_trajectory_gifs(epoch, split=_VALID_STR)
+            metrics |= self.plot_trajectory_embeddings(epoch, split=_VALID_STR)
+            metrics |= self.measure_valid_loss(epoch)
+            metrics |= self.measure_solved_rate(epoch, split=_VALID_STR)
+            metrics |= self.measure_monotonicity_correlation(epoch, split=_VALID_STR)
+
+        self.logger.log_metrics(epoch, metrics)
 
         self.model.train()
 

@@ -80,6 +80,7 @@ class TrainJob(AbstractJob):
             device=self.device,
             model=self.model,
             optimizer=self.optimizer,
+            trainset=self.trainset,
             sim_fn=sim_fn,
             loss_fn=self.loss_fn,
             gin_config=gin_config,
