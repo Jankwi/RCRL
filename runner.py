@@ -1,5 +1,5 @@
 import argparse
-from typing import Dict, List, Type
+from typing import Dict, Type
 
 import gin
 

@@ -40,16 +40,27 @@ class SpecialStateModelWrapper(nn.Module):
         base_model: nn.Module,
         spec_mgr: SpecialStateManager,
         embed_dim: int,
+        trainable_base: bool = True,
         trainable_special: bool = True,
     ) -> None:
         super().__init__()
         self.base_model = base_model
         self.spec_mgr = spec_mgr
         self.embed_dim = embed_dim
+
+        self.trainable_base = trainable_base
+        if not self.trainable_base:
+            self.base_model.requires_grad_(False)
+
         if trainable_special:
             self.special_embed = nn.Parameter(torch.randn(embed_dim))
         else:
             self.register_buffer('special_embed', torch.zeros(embed_dim))
+
+    def train(self, mode: bool = True) -> None:
+        super().train(mode=mode)
+        if not self.trainable_base:
+            self.base_model.eval()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         spec_mask = self.spec_mgr.detect_special_states(x)

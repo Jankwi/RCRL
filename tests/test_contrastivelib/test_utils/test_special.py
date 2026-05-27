@@ -133,11 +133,45 @@ class TestSpecialStateModelWrapper:
             test_y_hat = model(test_X)
             assert_close(test_y_hat, test_y, atol=self.atol, rtol=0.0)
 
+    @pytest.mark.parametrize('embed_dim, data_dim, n_samples, n_spec', [(3, 3, 10, 5)])
+    def test_non_trainable_base(self, device_fx, embed_dim, data_dim, n_samples, n_spec):
+        shape = (data_dim,)
+        base_model = nn.Linear(data_dim, embed_dim).to(device_fx)
+
+        old_weight = base_model.weight.detach().clone()
+        old_bias = base_model.bias.detach().clone()
+
+        input = torch.rand(n_samples, *shape, device=device_fx)
+        input[:n_spec] = self.val
+        target = torch.zeros((n_samples, embed_dim), dtype=torch.float, device=device_fx)
+        target[:n_spec] = 1
+
+        spec_mgr = SpecialStateManager(val=self.val, shape=shape, device=device_fx)
+        model = SpecialStateModelWrapper(base_model, spec_mgr, embed_dim, trainable_base=False).to(
+            device_fx
+        )
+
+        old_special_embed = model.special_embed.detach().clone()
+
+        # intensive updates
+        self.fit_model(model, input, target, num_epochs=5, lr=1)
+
+        new_weight = model.base_model.weight.detach().clone()
+        new_bias = model.base_model.bias.detach().clone()
+        new_special_embed = model.special_embed.detach().clone()
+
+        # Shouldn't have been updated
+        assert_close(old_weight, new_weight)
+        assert_close(old_bias, new_bias)
+
+        # Special embed should have been updated
+        assert not torch.allclose(old_special_embed, new_special_embed)
+
     @pytest.mark.parametrize('embed_dim', [4, 8])
     @pytest.mark.parametrize('data_dim', [10])
     @pytest.mark.parametrize('batch_size', [5])
     @pytest.mark.parametrize('special_pos', [[], [1, 3], [0, 2, 4]])
-    def test_non_trainable(self, device_fx, embed_dim, data_dim, batch_size, special_pos):
+    def test_no_training(self, device_fx, embed_dim, data_dim, batch_size, special_pos):
         shape = (data_dim,)
         states = torch.rand(batch_size, *shape, device=device_fx)
         for pos in special_pos:
