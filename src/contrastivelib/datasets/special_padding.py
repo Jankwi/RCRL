@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import Tuple
 
 import gin
@@ -9,15 +10,7 @@ from src.contrastivelib.utils.distributions import DistributionSampler
 from src.contrastivelib.utils.special import SpecialStateManager
 
 
-@gin.configurable
-class ContrastiveDatasetSpecialPadding(AbstractContrastiveDataset):
-    """
-    Uses CRTR, but instead of rescaling the geometric distribution,
-    maps the out of range indices to the special states.
-
-    In other words, pads each trajectory with an infinite number of specialn states.
-    """
-
+class _AbstractPadded(AbstractContrastiveDataset):
     def __init__(
         self,
         file_sets_path: str,
@@ -38,6 +31,10 @@ class ContrastiveDatasetSpecialPadding(AbstractContrastiveDataset):
         self.repetition_factor = repetition_factor
         self.sampler = DistributionSampler(device=self.device, gamma=gamma)
 
+    @abstractmethod
+    def _delta_from_t0(self, t0: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+        pass
+
     def contrastive_pick(
         self, trajectories: torch.Tensor, lengths: torch.Tensor
     ) -> Tuple[TensorDict, TensorDict]:
@@ -50,8 +47,31 @@ class ContrastiveDatasetSpecialPadding(AbstractContrastiveDataset):
         trajectories[batch_idx, lengths] = spec_states
 
         t0 = self.sampler.bounded_uniform(lengths)
-        t1 = t0 + self.sampler.clamped_geometric(lengths - t0)
+        t1 = t0 + self._delta_from_t0(t0, lengths)
         return (
             TensorDict({'state': trajectories[batch_idx, t0], 'goal': trajectories[batch_idx, t1]}),
             TensorDict({}),
         )
+
+
+@gin.configurable
+class ContrastiveDatasetSpecialPadding(_AbstractPadded):
+    """
+    Uses CRTR, but instead of rescaling the geometric distribution,
+    maps the out of range indices to the special states.
+
+    In other words, pads each trajectory with an infinite number of specialn states.
+    """
+
+    def _delta_from_t0(self, t0: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+        return self.sampler.clamped_geometric(lengths - t0)
+
+
+@gin.configurable
+class ContrastiveDatasetSingleSpecial(_AbstractPadded):
+    """
+    Uses CRTR, appending a single special state at the end of every trajectory.
+    """
+
+    def _delta_from_t0(self, t0: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+        return self.sampler.bounded_geometric(lengths - t0)

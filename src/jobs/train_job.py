@@ -11,6 +11,7 @@ from tqdm import tqdm
 from src.contrastivelib.datasets import (
     AbstractContrastiveDataset,
     ContrastiveDatasetNoSpecial,
+    ContrastiveDatasetSingleSpecial,
     ContrastiveDatasetSpecialPadding,
     ContrastiveDatasetWeightedSpecial,
 )
