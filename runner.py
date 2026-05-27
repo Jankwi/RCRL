@@ -51,7 +51,7 @@ if __name__ == '__main__':
         '--only_parse',
         action='store_true',
         default=False,
-        help="Don't run the job, just check if config parses OK"
+        help="Don't run the job, just check if config parses OK",
     )
 
     args = parser.parse_args()

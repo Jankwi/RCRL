@@ -42,6 +42,8 @@ class SpecialStateModelWrapper(nn.Module):
         embed_dim: int,
         trainable_base: bool = True,
         trainable_special: bool = True,
+        base_checkpoint_path: str = None,
+        whole_checkpoint_path: str = None,
     ) -> None:
         super().__init__()
         self.base_model = base_model
@@ -56,6 +58,17 @@ class SpecialStateModelWrapper(nn.Module):
             self.special_embed = nn.Parameter(torch.randn(embed_dim))
         else:
             self.register_buffer('special_embed', torch.zeros(embed_dim))
+
+        self._load_checkpoint(base_checkpoint_path, whole_checkpoint_path)
+
+    def _load_checkpoint(self, base_checkpoint_path: str, whole_checkpoint_path: str) -> None:
+        if base_checkpoint_path is not None and whole_checkpoint_path is not None:
+            raise ValueError('Cannot specify both base_checkpoint_path and whole_checkpoint_path')
+        if base_checkpoint_path is not None:
+            self.base_model.load_state_dict(torch.load(base_checkpoint_path))
+        if whole_checkpoint_path is not None:
+            state_dict = torch.load(whole_checkpoint_path)
+            self.load_state_dict(state_dict)
 
     def train(self, mode: bool = True) -> None:
         super().train(mode=mode)
