@@ -28,9 +28,11 @@ def run(
     gin_config: Dict[str, str],
     run_name: str = 'no name set',
     run_family: str = 'undeclared',
-    tags: List[str] = [],
+    tags: Dict[str, str] = {},
 ):
     fix_seed(seed)
+    for tag_key, tag_value in tags.items():
+        gin_config[f'tags.{tag_key}'] = tag_value
     job = job_class(gin_config=gin_config)
     job.execute()
 

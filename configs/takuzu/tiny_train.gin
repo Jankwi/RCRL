@@ -1,7 +1,10 @@
 run.seed = 67
 run.run_name = 'takuzu tiny train'
-run.run_family = 'training'
-run.tags = ['takuzu', 'train', 'tiny']
+run.run_family = 'demo'
+run.tags = {
+    'fictional_jobid': '2137',
+    'TIMESTAMP': '2024-06-17T12:00:00',
+}
 run.job_class = @TrainJob
     TrainJob.embed_dim = 64
     TrainJob.metric_name = 'L2'
@@ -29,7 +32,7 @@ run.job_class = @TrainJob
         MetricsJob.validset_class = @ContrastiveDatasetSpecialPadding
         MetricsJob.logger_class = @MultipleLoggers
             MultipleLoggers.default_log_freq = 1
-            MultipleLoggers.wandb = False
+            MultipleLoggers.wandb = True
             MultipleLoggers.skip_metrics = ['plot_embeds', 'state_dict', 'gif']
         MetricsJob.solved_rate_job_class = @SolvedRateJob
             SolvedRateJob.n_boards = 256
