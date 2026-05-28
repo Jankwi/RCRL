@@ -13,13 +13,15 @@ from src.jobs.validation_job import *  # noqa: F403
 
 def gin_config_to_dict(config_str: str) -> Dict[str, str]:
     result = {}
-    for line in config_str.splitlines():
+    lines = iter(config_str.splitlines())
+    for line in lines:
         line = line.strip()
         if line and not line.startswith('#'):
+            while line.endswith('\\'):
+                line = line.rstrip('\\') + next(lines).strip()
             key, _, value = line.partition(' = ')
             result[key] = value
     return result
-
 
 @gin.configurable
 def run(

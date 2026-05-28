@@ -22,6 +22,8 @@ from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateMo
 from src.jobs import AbstractJob
 from src.jobs.metrics_job import MetricsJob
 
+_TRAIN_STR, _VALID_STR = 'train', 'valid'
+
 
 @gin.configurable
 class TrainJob(AbstractJob):
@@ -36,19 +38,22 @@ class TrainJob(AbstractJob):
         embed_dim: int,
         metric_name: str,
         normalize: bool,
-        trainset_path: str,
         base_model_class: Type[nn.Module],
         loss_class: Type[AbstractContrastiveLoss],
         dataset_class: Type[AbstractContrastiveDataset],
         metrics_job_class: Type[MetricsJob],
         spec_mgr_class: Type[SpecialStateManager] = None,
         spec_model_wrapper_class: Type[nn.Module] = SpecialStateModelWrapper,
+        trainset_path: str = None,
+        dataset_dir: str = None,  # Used for deriving trainset/validset paths
         gin_config: Dict[str, str] = None,
         epochs: int = None,
         lr: float = 0.001,
         update_steps: int = None,
         append_loss_metrics: bool = True,
     ) -> None:
+        if not ((trainset_path is None) ^ (dataset_dir is None)):
+            raise ValueError(f'Exactly one of {trainset_path=} and {dataset_dir=} has to be set')
         if not ((epochs is None) ^ (update_steps is None)):
             raise ValueError(f'Exactly one of {epochs=} and {update_steps=} has to be set')
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -63,12 +68,20 @@ class TrainJob(AbstractJob):
             if spec_mgr is not None
             else base_model
         ).to(self.device)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.loss_fn = loss_class(embed_dim=embed_dim, sim_fn=sim_fn, device=self.device)
-        self.trainset = dataset_class(
-            file_sets_path=trainset_path, device=self.device, **spec_mgr_param
+
+        self.trainset_path = (
+            trainset_path if trainset_path is not None else f'{dataset_dir}/{_TRAIN_STR}'
         )
+        self.validset_path_param = (
+            {'validset_path': f'{dataset_dir}/{_VALID_STR}'} if dataset_dir is not None else {}
+        )
+        self.trainset = dataset_class(
+            file_sets_path=self.trainset_path, device=self.device, **spec_mgr_param
+        )
+
         self.epochs = (
             epochs
             if (epochs is not None)
@@ -86,6 +99,7 @@ class TrainJob(AbstractJob):
             loss_fn=self.loss_fn,
             gin_config=gin_config,
             spec_mgr_param=spec_mgr_param,
+            **self.validset_path_param,
         )
 
     def execute(self) -> None:
