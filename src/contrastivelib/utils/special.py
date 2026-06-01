@@ -78,7 +78,8 @@ class SpecialStateModelWrapper(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         spec_mask = self.spec_mgr.detect_special_states(x)
         result = torch.zeros(x.shape[0], self.embed_dim, device=self.spec_mgr.device)
-        result[spec_mask] += self.special_embed
-        if (~spec_mask).any().item():
-            result[~spec_mask] = self.base_model(x[~spec_mask])
+        if spec_mask.any():
+            result = result.index_put((spec_mask,), self.special_embed.expand(spec_mask.sum(), -1))
+        if (~spec_mask).any():
+            result = result.index_put((~spec_mask,), self.base_model(x[~spec_mask]))
         return result

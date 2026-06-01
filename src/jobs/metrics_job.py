@@ -139,7 +139,7 @@ class MetricsJob:
         acc = MetricAccumulator()
 
         for states, extras in self.datasets[_VALID_STR]:
-            states_repr = states.apply(self.model)
+            states_repr = {k: self.model(v) for k, v in states.items()}
             loss, metrics = self.loss_fn(
                 **states_repr,
                 **extras,

@@ -189,11 +189,13 @@ class AbstractContrastiveDataset(IterableDataset):
             self.preloaded_prefix, self.preloaded_batches = None, None
 
     @abstractmethod
-    def contrastive_pick(self, **kwargs: torch.Tensor) -> Tuple[TensorDict, TensorDict]:
-        """Returns a tuple of tensordicts, containing state tensors, and extras respectively"""
+    def contrastive_pick(
+        self, **kwargs: torch.Tensor
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+        """Returns a tuple of dicts, containing state tensors, and extras respectively"""
         pass
 
-    def __iter__(self) -> Iterator[Tuple[TensorDict, TensorDict]]:
+    def __iter__(self) -> Iterator[Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]]:
         """Iterates over file sets (and chunks in them) in random order, yields contrastive picks"""
         random.shuffle(self.file_sets)
         for file_set in self.file_sets:

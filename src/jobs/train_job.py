@@ -6,6 +6,7 @@ import gin
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tensordict import TensorDict
 from tqdm import tqdm
 
 from src.contrastivelib.datasets import (
@@ -50,6 +51,7 @@ class TrainJob(AbstractJob):
         lr: float = 0.001,
         update_steps: int = None,
         append_loss_metrics: bool = True,
+        cat_train_input: bool = True,
     ) -> None:
         if not ((trainset_path is None) ^ (dataset_dir is None)):
             raise ValueError(f'Exactly one of {trainset_path=} and {dataset_dir=} has to be set')
@@ -70,6 +72,7 @@ class TrainJob(AbstractJob):
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.loss_fn = loss_class(embed_dim=embed_dim, sim_fn=sim_fn, device=self.device)
+        self.cat_train_input = cat_train_input
 
         self.trainset_path = (
             trainset_path if trainset_path is not None else f'{dataset_dir}/{_TRAIN_STR}'
@@ -101,6 +104,17 @@ class TrainJob(AbstractJob):
             **self.validset_path_param,
         )
 
+    def _train_forward(self, input: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        """Forwards the input through the model, applying special token handling if configured."""
+        if self.cat_train_input:
+            labels = list(input.keys())
+            sizes = [input[k].shape[0] for k in labels]
+            cat_input = torch.cat([input[k] for k in labels], dim=0)
+            cat_output = self.model(cat_input)
+            split_output = torch.split(cat_output, sizes, dim=0)
+            return {k: split_output[i] for i, k in enumerate(labels)}
+        return {k: self.model(v) for k, v in input.items()}
+
     def execute(self) -> None:
         """Trains the model, and logs metrics"""
         if torch.cuda.is_available():
@@ -113,7 +127,7 @@ class TrainJob(AbstractJob):
             for states, extras in self.trainset:
                 self.optimizer.zero_grad()
 
-                states_repr = states.apply(self.model)
+                states_repr = self._train_forward(states)
                 loss, metrics = self.loss_fn(
                     **states_repr,
                     **extras,

@@ -4,7 +4,6 @@ from typing import Dict, Tuple, Type
 import gin
 import matplotlib.pyplot as plt
 import torch
-from tensordict import TensorDict
 
 from src.contrastivelib.datasets.abstract_contrastive import AbstractContrastiveDataset
 from src.contrastivelib.utils.distributions import DistributionSampler
@@ -36,7 +35,7 @@ class _AugmentPreviewDataset(AbstractContrastiveDataset):
 
     def contrastive_pick(
         self, trajectories: torch.Tensor, lengths: torch.Tensor
-    ) -> Tuple[TensorDict, TensorDict]:
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         lengths = lengths.to(torch.long)
         batch_idx = torch.arange(len(trajectories), device=self.device)
 
@@ -47,13 +46,9 @@ class _AugmentPreviewDataset(AbstractContrastiveDataset):
         full = trajectories[batch_idx, t_full]
         positive, negative = self.aug(state, full)
 
-        batch_size = state.shape[0]
         return (
-            TensorDict(
-                {'state': state, 'positive': positive, 'negative': negative, 'full': full},
-                batch_size=batch_size,
-            ),
-            TensorDict({}, batch_size=batch_size),
+            {'state': state, 'positive': positive, 'negative': negative, 'full': full},
+            {},
         )
 
 

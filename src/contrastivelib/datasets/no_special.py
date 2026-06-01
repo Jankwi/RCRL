@@ -1,8 +1,7 @@
-from typing import Tuple
+from typing import Dict, Tuple
 
 import gin
 import torch
-from tensordict import TensorDict
 
 from src.contrastivelib.datasets.abstract_contrastive import AbstractContrastiveDataset
 from src.contrastivelib.utils.distributions import DistributionSampler
@@ -34,7 +33,7 @@ class ContrastiveDatasetNoSpecial(AbstractContrastiveDataset):
 
     def contrastive_pick(
         self, trajectories: torch.Tensor, lengths: torch.Tensor
-    ) -> Tuple[TensorDict, TensorDict]:
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         trajectories = torch.repeat_interleave(trajectories, self.repetition_factor, dim=0)
         lengths = torch.repeat_interleave(lengths.to(torch.long), self.repetition_factor, dim=0)
         batch_idx = torch.arange(len(trajectories), device=self.device)
@@ -42,6 +41,6 @@ class ContrastiveDatasetNoSpecial(AbstractContrastiveDataset):
         t0 = self.sampler.bounded_uniform(lengths - 1)
         t1 = t0 + self.sampler.clamped_geometric(lengths - 1 - t0)
         return (
-            TensorDict({'state': trajectories[batch_idx, t0], 'goal': trajectories[batch_idx, t1]}),
-            TensorDict({}),
+            {'state': trajectories[batch_idx, t0], 'goal': trajectories[batch_idx, t1]},
+            {},
         )

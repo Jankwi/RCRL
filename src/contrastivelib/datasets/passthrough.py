@@ -1,8 +1,7 @@
-from typing import List
+from typing import Dict, List, Tuple
 
 import gin
 import torch
-from tensordict import TensorDict
 
 from src.contrastivelib.datasets import AbstractContrastiveDataset
 from src.contrastivelib.utils.special import SpecialStateManager
@@ -34,5 +33,5 @@ class PassthroughDataset(AbstractContrastiveDataset):
             spec_mgr=spec_mgr,
         )
 
-    def contrastive_pick(self, **kwargs) -> tuple[TensorDict, None]:  # noqa: ANN003
-        return TensorDict(kwargs), None
+    def contrastive_pick(self, **kwargs) -> Tuple[Dict[str, torch.Tensor], None]:  # noqa: ANN003
+        return kwargs, None

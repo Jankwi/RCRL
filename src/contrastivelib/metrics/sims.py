@@ -43,8 +43,8 @@ class L2SimilarityMeasure(SimilarityMeasure):
     def __init__(self, normalize: bool) -> None:
         super().__init__(normalize=normalize, p=2)
 
-    def _measure(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        return torch.sqrt(torch.sum((a - b) ** 2, dim=-1))
+    def _measure(self, a: torch.Tensor, b: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+        return torch.sqrt(torch.sum((a - b) ** 2, dim=-1) + eps)
 
 
 class DotProductSimilarityMeasure(SimilarityMeasure):
