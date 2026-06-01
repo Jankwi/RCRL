@@ -23,6 +23,7 @@ def gin_config_to_dict(config_str: str) -> Dict[str, str]:
             result[key] = value
     return result
 
+
 @gin.configurable
 def run(
     seed: int,

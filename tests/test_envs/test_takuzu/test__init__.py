@@ -2,8 +2,8 @@ import pytest
 import torch
 from torch.testing import assert_close
 
-from contrastivelib.utils.special import SpecialStateManager
 from src.common import fix_seed
+from src.contrastivelib.utils.special import SpecialStateManager
 from src.envs.takuzu import VectorizedTakuzu
 
 _BLUE = 1

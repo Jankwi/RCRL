@@ -49,6 +49,9 @@ class VectorizedTakuzu(VectorizedEnvironment):
                 action_tensor[2 * (i * n + j) + 1][i][j] = self.yellow_marker
         super().__init__(action_tensor=action_tensor)
 
+    def env_string(self) -> str:
+        return 'takuzu_goal'
+
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
         return self.spec_mgr.create_many(states.shape[0])
 

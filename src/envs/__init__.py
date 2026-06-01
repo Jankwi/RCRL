@@ -15,6 +15,10 @@ class VectorizedEnvironment(ABC):
 
     """Abstract class, detailing the interface that a vectorized environment should have"""
 
+    def env_string(self) -> str:
+        """Returns a string uniquely identifying the environment."""
+        return self.__class__.__name__
+
     @abstractmethod
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
         pass
