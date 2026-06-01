@@ -41,13 +41,11 @@ class _AugmentPreviewDataset(AbstractContrastiveDataset):
         batch_idx = torch.arange(len(trajectories), device=self.device)
 
         t0 = self.sampler.bounded_uniform(lengths - 1)
-        t1 = t0 + 1 + self.sampler.bounded_uniform(lengths - 1 - t0)
         t_full = lengths - 1
 
         state = trajectories[batch_idx, t0]
-        future = trajectories[batch_idx, t1]
         full = trajectories[batch_idx, t_full]
-        positive, negative = self.aug(state, future, full)
+        positive, negative = self.aug(state, full)
 
         batch_size = state.shape[0]
         return (
