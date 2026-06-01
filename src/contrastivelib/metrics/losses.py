@@ -3,6 +3,7 @@ from typing import Dict
 
 import gin
 import torch
+from torch.nn import BCEWithLogitsLoss
 
 from src.contrastivelib.metrics.sims import SimilarityMeasure
 
@@ -97,4 +98,34 @@ class BaselineContrastiveLoss(AbstractContrastiveLoss):
                 metrics = {f'backward_{k}': v for k, v in m.items()}
             case _:
                 raise ValueError()
+        return (loss, metrics) if (append_metrics or append_empty) else loss
+
+
+@gin.configurable
+class CrossEntropyClassificationLoss(AbstractContrastiveLoss):
+    def __init__(self, embed_dim: int, sim_fn: SimilarityMeasure, device: torch.device) -> None:
+        super().__init__(embed_dim=embed_dim, sim_fn=sim_fn, device=device)
+        self.criterion = BCEWithLogitsLoss()
+
+    def __call__(
+        self,
+        positive: torch.Tensor,
+        negative: torch.Tensor,
+        append_metrics: bool = False,
+        append_empty: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, Dict[str, float]]:
+        positive_target = torch.ones((len(positive), 1), device=positive.device, dtype=torch.float)
+        negative_target = torch.zeros((len(negative), 1), device=negative.device, dtype=torch.float)
+        loss = self.criterion(positive, positive_target) + self.criterion(negative, negative_target)
+
+        metrics = {}
+        if append_metrics:
+            with torch.no_grad():
+                metrics['positive_accuracy'] = (
+                    (positive > 0).float().mean().item() if len(positive) > 0 else 0.0
+                )
+                metrics['negative_accuracy'] = (
+                    (negative < 0).float().mean().item() if len(negative) > 0 else 0.0
+                )
+
         return (loss, metrics) if (append_metrics or append_empty) else loss

@@ -63,3 +63,22 @@ class ManyGoalsValueEstimator(ValueEstimator):
         states_emb_repeated = states_emb.unsqueeze(1).repeat(1, k, 1).reshape(n * k, -1)
         sims = self.sim_fn(states_emb_repeated, goals_emb, 'elementwise').reshape(n, k)
         return torch.min(sims, dim=1).values
+
+
+@gin.configurable
+class LogitValueEstimator(ValueEstimator):
+    def __init__(
+        self,
+        model: nn.Module,
+        device: torch.device,
+        batch_size: int = None,
+        sim_fn: SimilarityMeasure = None,  # for compatibility with gin configs, not actually used
+    ) -> None:
+        super().__init__(device=device)
+        self.model = model
+        self.batch_size = batch_size
+
+    def get_solved_distance(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
+        # Lower output = more solvable
+        # (sigmoid closer to 1 → raw output positive → negated for distance)
+        return -_forward_chunked(self.model, states, self.batch_size).squeeze()

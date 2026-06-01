@@ -14,6 +14,7 @@ from src.contrastivelib.datasets import (
     ContrastiveDatasetNoSpecial,
     ContrastiveDatasetSingleSpecial,
     ContrastiveDatasetSpecialPadding,
+    PositiveNegativeDataset,
 )
 from src.contrastivelib.metrics.losses import AbstractContrastiveLoss, MetricAccumulator
 from src.contrastivelib.metrics.sims import get_similarity_measure
