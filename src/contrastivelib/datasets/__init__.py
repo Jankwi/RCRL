@@ -7,13 +7,11 @@ from src.contrastivelib.datasets.special_padding import (
     ContrastiveDatasetSingleSpecial,
     ContrastiveDatasetSpecialPadding,
 )
-from src.contrastivelib.datasets.weighted_special import ContrastiveDatasetWeightedSpecial
 
 __all__ = [
     'AbstractContrastiveDataset',
     'ContrastiveDatasetNoSpecial',
-    'PassthroughDataset',
     'ContrastiveDatasetSingleSpecial',
     'ContrastiveDatasetSpecialPadding',
-    'ContrastiveDatasetWeightedSpecial',
+    'PassthroughDataset',
 ]
