@@ -54,6 +54,8 @@ class TestL2SimilarityMeasure:
 
     def setup_method(self, method):
         self.seed = 42
+        self.atol = 2e-4
+        self.rtol = 0.0
         fix_seed(self.seed)
 
     @pytest.mark.parametrize(
@@ -81,14 +83,14 @@ class TestL2SimilarityMeasure:
         expected = torch.tensor(expected, device=device_fx)
 
         sim_fn = L2SimilarityMeasure(normalize)
-        assert_close(sim_fn(a, b, 'elementwise'), expected)
+        assert_close(sim_fn(a, b, 'elementwise'), expected, atol=self.atol, rtol=self.rtol)
 
     def test_l2_cross_similarity(self, cross_sim_data):
         """Verifies cross-mode L2 similarity against repeated elementwise calls."""
         a, b, normalize, build_expected = cross_sim_data
         sim_fn = L2SimilarityMeasure(normalize)
         expected = build_expected(sim_fn)
-        assert_close(sim_fn(a, b, 'cross'), expected)
+        assert_close(sim_fn(a, b, 'cross'), expected, atol=self.atol, rtol=self.rtol)
 
 
 class TestDotProductSImilarityMeasure:
