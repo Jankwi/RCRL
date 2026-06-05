@@ -1,3 +1,4 @@
+import math
 from abc import ABC
 from typing import Dict
 
@@ -29,14 +30,15 @@ class MetricAccumulator:
 
 @gin.configurable
 class AbstractContrastiveLoss(ABC):
-    def __init__(self, embed_dim: int, sim_fn: SimilarityMeasure, device: torch.device) -> None:
-        self.tau = -torch.sqrt(torch.tensor([embed_dim], device=device))
+    def __init__(
+        self, embed_dim: int, sim_fn: SimilarityMeasure, device: torch.device, tau: float = None
+    ) -> None:
+        self.tau = tau if tau is not None else 1 / math.sqrt(embed_dim)
         self.sim_fn = sim_fn
         self.device = device
 
-    def _get_exp_sim(self, psi_0: torch.Tensor, psi_T: torch.Tensor, mode: str) -> torch.Tensor:
-        sims = self.sim_fn(psi_0, psi_T, mode)
-        return torch.exp(sims / self.tau)
+    def cross_dist_logits(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return self.sim_fn(a, b, 'cross') / self.tau
 
 
 @gin.configurable
@@ -60,18 +62,18 @@ class BaselineContrastiveLoss(AbstractContrastiveLoss):
         append_metrics: bool = False,
         append_empty: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, Dict[str, float]]:
-        # Compute raw similarities without `.exp()` for numerical stability
-        sims = self.sim_fn(psi_0, psi_T, 'cross') / self.tau
-        # log-sum-exp trick avoids NaN from overflow/underflow
-        loss = (-sims.diagonal() + torch.logsumexp(sims, dim=1)).mean()
+        dists = self.cross_dist_logits(psi_0, psi_T)
+        loss = (dists.diagonal() + torch.logsumexp(-dists, dim=1)).mean()
 
         if not (append_metrics or append_empty):
             return loss
         metrics = {}
         if append_metrics:
             with torch.no_grad():
-                n = sims.shape[0]
-                correct = (sims.argmax(dim=1) == torch.arange(n, device=sims.device)).float().mean()
+                n = dists.shape[0]
+                correct = (
+                    (dists.argmin(dim=1) == torch.arange(n, device=dists.device)).float().mean()
+                )
             metrics = {'contrastive_accuracy': correct.item()}
         return loss, metrics
 
