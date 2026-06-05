@@ -28,6 +28,7 @@ class PositiveNegativeDataset(AbstractContrastiveDataset):
         repetition_factor: int = 1,
         split: bool = False,
         same_t0: bool = False,
+        append_special: bool = True,
     ) -> None:
         super().__init__(
             file_sets_path=file_sets_path,
@@ -41,6 +42,8 @@ class PositiveNegativeDataset(AbstractContrastiveDataset):
         self.sampler = DistributionSampler(device=self.device, gamma=gamma)
         self.split = split
         self.same_t0 = same_t0
+        self.append_special = append_special and spec_mgr is not None
+        self.spec_mgr = spec_mgr
 
     def contrastive_pick(
         self, trajectories: torch.Tensor, lengths: torch.Tensor
@@ -66,7 +69,12 @@ class PositiveNegativeDataset(AbstractContrastiveDataset):
             positive = positive[:batch_size]
             negative = negative[batch_size:]
 
+        ret_states = {'positive': positive, 'negative': negative}
+        if self.append_special:
+            special = self.spec_mgr.create_many(1)
+            ret_states['special'] = special
+
         return (
-            {'positive': positive, 'negative': negative},
+            ret_states,
             {},
         )

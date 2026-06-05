@@ -16,7 +16,14 @@ from src.contrastivelib.datasets import (
     ContrastiveDatasetSpecialPadding,
     PositiveNegativeDataset,
 )
-from src.contrastivelib.metrics.losses import AbstractContrastiveLoss, MetricAccumulator
+from src.contrastivelib.metrics.losses import (
+    AbstractContrastiveLoss,
+    BaselineContrastiveLoss,
+    ElementwiseSupConLoss,
+    MetricAccumulator,
+    SparseSupConLoss,
+    SupConLoss,
+)
 from src.contrastivelib.metrics.sims import get_similarity_measure
 from src.contrastivelib.networks import BroNet, ConvNet, Embedding2D, LNConvNet, LNDenseNet
 from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper

@@ -1,5 +1,5 @@
 import math
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Dict
 
 import gin
@@ -131,3 +131,112 @@ class CrossEntropyClassificationLoss(AbstractContrastiveLoss):
                 )
 
         return (loss, metrics) if (append_metrics or append_empty) else loss
+
+
+@gin.configurable
+class SupConLoss(AbstractContrastiveLoss):
+    """
+    Applies 2-class supervised contrastive loss to cluster positives and negatives
+    https://arxiv.org/abs/2004.11362
+    """
+
+    def _get_class_term(
+        self, in_class_sims: torch.Tensor, cross_class_sims: torch.Tensor
+    ) -> torch.Tensor:
+        N = in_class_sims.shape[0]
+        assert N > 1, 'SupConLoss requires at least 2 samples per class'
+        no_diag_mask = ~torch.eye(N, dtype=bool, device=self.device)
+        non_self_in_class_sims = in_class_sims[no_diag_mask].view(N, N - 1)
+
+        Pi_sims = non_self_in_class_sims
+        Ai_sims = torch.cat([non_self_in_class_sims, cross_class_sims], dim=1)
+
+        denominator = torch.logsumexp(Ai_sims, dim=1)
+        fraction = Pi_sims - denominator.unsqueeze(1)
+
+        return -fraction.mean(dim=1).mean()
+
+    def __call__(
+        self,
+        positive: torch.Tensor,
+        negative: torch.Tensor,
+        special: torch.Tensor = None,
+        append_metrics: bool = False,
+        append_empty: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, Dict[str, float]]:
+        if special is not None:
+            positive = torch.cat([positive, special], dim=0)
+        pos_sims = -self.cross_dist_logits(positive, positive)
+        neg_sims = -self.cross_dist_logits(negative, negative)
+        pos_neg_sims = -self.cross_dist_logits(positive, negative)
+
+        pos_loss = self._get_class_term(pos_sims, pos_neg_sims)
+        neg_loss = self._get_class_term(neg_sims, pos_neg_sims.t())
+        loss = (pos_loss + neg_loss) / 2
+
+        metrics = {}
+        if append_metrics:
+            metrics['pos_loss'] = pos_loss.item()
+            metrics['neg_loss'] = neg_loss.item()
+        return (loss, metrics) if (append_metrics or append_empty) else loss
+
+
+@gin.configurable
+class AbstractLinearSupConLoss(AbstractContrastiveLoss):
+    """
+    Base class for supervised contrastive losses that take into account, only the distance between
+    positives/negatives and the positive special state
+    """
+
+    @abstractmethod
+    def _calc_loss(self, pos_sims: torch.Tensor, neg_sims: torch.Tensor) -> torch.Tensor:
+        pass
+
+    def __call__(
+        self,
+        positive: torch.Tensor,
+        negative: torch.Tensor,
+        special: torch.Tensor,
+        append_metrics: bool = False,
+        append_empty: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, Dict[str, float]]:
+        pos_sims = -self.cross_dist_logits(positive, special).squeeze(1)
+        neg_sims = -self.cross_dist_logits(negative, special).squeeze(1)
+
+        loss = self._calc_loss(pos_sims, neg_sims)
+
+        metrics = {}
+        if append_metrics:
+            with torch.no_grad():
+                metrics['elementwise_accuracy'] = (pos_sims > neg_sims).float().mean().item()
+        return (loss, metrics) if (append_metrics or append_empty) else loss
+
+
+@gin.configurable
+class ElementwiseSupConLoss(AbstractLinearSupConLoss):
+    """
+    Optimizes elementwise fractions
+    exp(sim(pos_i, special))/(exp(sim(pos_i, special)) + exp(sim(neg_i, special)))
+    """
+
+    def _calc_loss(self, pos_sims: torch.Tensor, neg_sims: torch.Tensor) -> torch.Tensor:
+        pos_neg = torch.stack([pos_sims, neg_sims], dim=1)
+        denominator = torch.logsumexp(pos_neg, dim=1)
+        fraction = pos_sims - denominator
+        return -fraction.mean()
+
+
+@gin.configurable
+class SparseSupConLoss(AbstractLinearSupConLoss):
+    """
+    Optimizes fractions of the form
+    exp(sim(pos_i, special))/(exp(sim(pos_i, special)) + sum_{j} (exp(sim(neg_j, special))))
+    so that each positive is closer to the special state, than all the negatives
+    """
+
+    def _calc_loss(self, pos_sims: torch.Tensor, neg_sims: torch.Tensor) -> torch.Tensor:
+        log_sum_neg = torch.logsumexp(neg_sims, dim=0)
+        denom_terms = torch.stack([pos_sims, log_sum_neg.expand_as(pos_sims)], dim=1)
+        denominator = torch.logsumexp(denom_terms, dim=1)
+        fraction = pos_sims - denominator
+        return -fraction.mean()
