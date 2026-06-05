@@ -8,7 +8,7 @@ import torch
 class AbstractTakuzuAugmentation(ABC):
     @abstractmethod
     def __call__(
-        self, states: torch.Tensor, full_board: torch.Tensor
+        self, states: torch.Tensor, full_board: torch.Tensor, specific_k: torch.Tensor = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Returns (positive, negative) Takuzu boards."""
         pass
@@ -39,16 +39,23 @@ def sample_random_on(mask: torch.Tensor, k: int) -> torch.Tensor:
 class BadRandomPixelChoice(AbstractTakuzuAugmentation):
     """Augmentation which makes k wrong pixel choices."""
 
-    def __init__(self, k_flipped: int) -> None:
+    def __init__(self, k_flipped: int = None) -> None:
         self.k_flipped = k_flipped
 
     def __call__(
-        self, states: torch.Tensor, full_board: torch.Tensor
+        self, states: torch.Tensor, full_board: torch.Tensor, specific_k: torch.Tensor = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = states.shape[0]
         flat_dim = states.numel() // batch_size
 
-        indices, valid = sample_random_on(states == 0, self.k_flipped)
+        max_k = torch.amax(specific_k).item() if specific_k is not None else self.k_flipped
+        assert max_k is not None, 'Either k_flipped or specific_k must be provided.'
+
+        indices, valid = sample_random_on(states == 0, max_k)
+
+        if specific_k is not None:
+            pos_range = torch.arange(max_k, device=states.device).unsqueeze(0)
+            valid = valid & (pos_range < specific_k.unsqueeze(1))
 
         flip_mask_flat = torch.zeros(
             batch_size, flat_dim + 1, dtype=torch.bool, device=states.device

@@ -72,3 +72,23 @@ class TestBadRandomPixelChoice:
 
         expected_flipped = not_filled_mask.sum(dim=(1, 2)).clamp(max=k_flipped)
         assert (expected_flipped == flip_mask.sum(dim=(1, 2))).all().item()
+
+    @pytest.mark.parametrize('n', [4])
+    @pytest.mark.parametrize('m_boards', [1000])
+    def test_bad_random_pixel_choice_specific_k(self, n, m_boards, device_fx):
+        specific_k = torch.randint(1, 4, (m_boards,), device=device_fx)
+        augment = BadRandomPixelChoice(k_flipped=None)
+
+        full_board = torch.randint(1, 3, (m_boards, n, n), dtype=torch.uint8, device=device_fx)
+        not_filled_mask = random_non_full_mask(m_boards, n, device_fx).to(torch.bool)
+        states = full_board.clone()
+        states[not_filled_mask] = 0
+
+        positive, negative = augment(states, full_board, specific_k=specific_k)
+
+        flip_mask = positive != states
+        assert_close(positive[flip_mask], full_board[flip_mask])
+        assert_close(negative[flip_mask], 3 - full_board[flip_mask])
+
+        expected_flipped = not_filled_mask.sum(dim=(1, 2)).clamp(max=specific_k)
+        assert (expected_flipped == flip_mask.sum(dim=(1, 2))).all().item()
