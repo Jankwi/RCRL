@@ -45,7 +45,6 @@ class MetricsJob:
         model: nn.Module,
         optimizer: nn.Module,
         validset_path: str,
-        validset_class: Type[AbstractContrastiveDataset],
         trainset: AbstractContrastiveDataset,
         loss_fn: AbstractContrastiveLoss,
         device: torch.device,
@@ -53,6 +52,8 @@ class MetricsJob:
         env_class: Type[VectorizedEnvironment],
         logger_class: Type[AbstractLogger],
         sim_fn: SimilarityMeasure,
+        validset_class: Type[AbstractContrastiveDataset] = None,
+        default_validset_class: Type[AbstractContrastiveDataset] = None,
         spec_mgr_param: Dict[str, SpecialStateManager] = {},
         solved_rate_job_class: Type[SolvedRateJob] = SolvedRateJob,
         gin_config: Dict[str, str] = None,
@@ -82,6 +83,9 @@ class MetricsJob:
 
         self.loss_fn = loss_fn
         self.datasets: Dict[str, AbstractContrastiveDataset] = {}
+
+        validset_class = validset_class or default_validset_class
+        assert validset_class is not None, 'validset class not provided'
         self.datasets[_VALID_STR] = validset_class(
             file_sets_path=validset_path, device=self.device, **spec_mgr_param
         )

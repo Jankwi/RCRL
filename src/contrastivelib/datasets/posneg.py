@@ -52,7 +52,7 @@ class PositiveNegativeDataset(AbstractContrastiveDataset):
         if self.same_t0:
             min_length = lengths.min().item()
             index_from_back = random.randint(1, min_length)
-            t0 = lengths - index_from_back
+            t0 = (lengths - 1) - index_from_back
         else:
             t0 = self.sampler.bounded_uniform(lengths - 1)
 

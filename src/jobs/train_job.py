@@ -99,6 +99,7 @@ class TrainJob(AbstractJob):
             optimizer=self.optimizer,
             trainset=self.trainset,
             sim_fn=sim_fn,
+            default_validset_class=dataset_class,
             loss_fn=self.loss_fn,
             gin_config=gin_config,
             spec_mgr_param=spec_mgr_param,
