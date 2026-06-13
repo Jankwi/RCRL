@@ -2,11 +2,11 @@ import gin
 import torch
 
 from src.contrastivelib.utils.special import SpecialStateManager
-from src.envs.maze import AbstractVectorizedMaze
+from src.envs.maze import MaxOneTargetMaze
 
 
 @gin.configurable
-class VectorizedTargetMaze(AbstractVectorizedMaze):
+class VectorizedTargetMaze(MaxOneTargetMaze):
     """
     A VectorizedMazeEnvironment in which the goal is a single point.
     """
@@ -15,33 +15,23 @@ class VectorizedTargetMaze(AbstractVectorizedMaze):
         self,
         device: torch.device,
         grid_dim: int = 20,
-        target_marker: int = 2,
-        pos_marker: int = 3,
         floor_marker: int = 0,
         wall_marker: int = 1,
+        pos_marker: int = 2,
+        target_marker: int = 3,  # Override target_marker defaulting to None
         spec_mgr: SpecialStateManager = None,
+        use_special: bool = True,
     ) -> None:
         super().__init__(
             device=device,
             grid_dim=grid_dim,
-            pos_marker=pos_marker,
             floor_marker=floor_marker,
             wall_marker=wall_marker,
+            pos_marker=pos_marker,
+            target_marker=target_marker,
+            spec_mgr=spec_mgr,
         )
-        self.target_marker: int = target_marker
-        self.spec_mgr = spec_mgr
-
-    def get_covered_pos(self, states: torch.Tensor) -> torch.Tensor:
-        """Returns target_marker for states where the agent is covering it, else floor_marker."""
-        target_visible = torch.any(states == self.target_marker, dim=(-1, -2))
-        result = torch.full(
-            (states.shape[0],),
-            fill_value=self.floor_marker,
-            device=states.device,
-            dtype=states.dtype,
-        )
-        result[~target_visible] = self.target_marker
-        return result
+        self.use_special = use_special
 
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
         """
@@ -49,8 +39,9 @@ class VectorizedTargetMaze(AbstractVectorizedMaze):
             Returns the special state.
         else:
             Returns the actual goal state.
+        Can be overridden by use_special.
         """
-        if self.spec_mgr is not None:
+        if self.spec_mgr is not None and self.use_special:
             return self.spec_mgr.create_many(len(states))
 
         goals, goals_no_pos = states.clone(), states.clone()
@@ -60,4 +51,5 @@ class VectorizedTargetMaze(AbstractVectorizedMaze):
         return torch.where(have_target, goals_no_pos, goals)
 
     def is_solved(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
+        """Checks if the agent covers the target"""
         return torch.all(states != self.target_marker, dim=(1, 2))

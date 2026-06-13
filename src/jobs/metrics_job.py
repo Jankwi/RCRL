@@ -16,7 +16,10 @@ from src.contrastivelib.metrics.sims import SimilarityMeasure
 from src.contrastivelib.utils.special import SpecialStateManager
 from src.envs import ValueEstimator, VectorizedEnvironment
 from src.envs.explore import eval_no_search
+from src.envs.maze.arbitrary import ArbitraryPositionMaze
+from src.envs.maze.center import VectorizedCenterMaze
 from src.envs.maze.colorful import VectorizedColorfulMaze
+from src.envs.maze.explicit import ExplicitGoalMaze
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.envs.takuzu import VectorizedTakuzu
@@ -130,7 +133,7 @@ class MetricsJob:
                         device=self.device,
                         env=env,
                         ve=self.ve,
-                        print_solved_rates=False,
+                        print_stats=False,
                         dataset=self.datasets[split],
                         **spec['sr_params'],
                     )
@@ -192,6 +195,8 @@ class MetricsJob:
         correlations = []
         for traj, length in zip(trajectories, lengths):
             length = length.item()
+            if length < 3:  # need >= 2 points for a rank correlation
+                continue
             traj = traj[:length]  # (L, state)
             goal = traj[-1].unsqueeze(0).expand_as(traj[:-1])  # (L-1, *state)
             dist = self.ve.get_solved_distance(traj[:-1], goal).cpu().numpy()  # (L-1,)

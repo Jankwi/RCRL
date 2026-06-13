@@ -1,0 +1,45 @@
+run.seed = 71
+run.run_name = 'special padding center maze'
+run.run_family = 'center-dev'
+run.job_class = @TrainJob
+    TrainJob.embed_dim = 32
+    TrainJob.metric_name = 'L22'
+    TrainJob.normalize = False
+    TrainJob.dataset_dir = 'data/center-maze-13'
+    TrainJob.epochs = 1
+    TrainJob.lr = 3e-4
+    TrainJob.loss_class = @BaselineContrastiveLoss
+    TrainJob.base_model_class = @LNConvNet
+        LNConvNet.input_network_class = @Embedding2D
+            Embedding2D.n_states = 4
+        LNConvNet.hidden_size = 32
+        LNConvNet.block_depth = 3
+    TrainJob.spec_mgr_class = @SpecialStateManager
+        SpecialStateManager.val = -1
+        SpecialStateManager.shape = (13, 13)
+    TrainJob.spec_model_wrapper_class = @SpecialStateModelWrapper
+        SpecialStateModelWrapper.trainable_special = True
+    TrainJob.dataset_class = @ContrastiveDatasetSingleSpecial
+        ContrastiveDatasetSingleSpecial.batch_size = 256
+        ContrastiveDatasetSingleSpecial.repetition_factor = 2
+    TrainJob.metrics_job_class = @MetricsJob
+        MetricsJob.logger_class = @MultipleLoggers
+            MultipleLoggers.default_log_freq = 1
+            MultipleLoggers.wandb = False
+            MultipleLoggers.skip_metrics = ['plot_embeds']
+            MultipleLoggers.advanced_frequencies = {
+                'gif': 5,
+            }
+            MetricsJob.solved_rate_job_class = @SolvedRateJob
+            SolvedRateJob.n_boards = 256
+            SolvedRateJob.frames_back = None
+        MetricsJob.n_gifs = 2
+        MetricsJob.checkpoint_models = 'no..haha'
+        MetricsJob.envs_common = {'grid_dim': 13}
+        MetricsJob.env_class = @VectorizedCenterMaze
+        MetricsJob.extra_solved_rate_envs = [
+            {'env_class': @ArbitraryPositionMaze},
+            {'env_class': @ExplicitGoalMaze},
+        ]
+        VectorizedTargetMaze.use_special = False
+        MetricsJob.ve_class = @SingleGoalValueEstimator

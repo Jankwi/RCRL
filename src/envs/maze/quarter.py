@@ -16,17 +16,17 @@ class VectorizedQuarterMaze(AbstractVectorizedMaze):
         self,
         device: torch.device,
         grid_dim: int = 20,
-        pos_marker: int = 3,
         floor_marker: int = 0,
         wall_marker: int = 1,
+        pos_marker: int = 2,
         spec_mgr: SpecialStateManager = None,
     ) -> None:
         super().__init__(
             device=device,
             grid_dim=grid_dim,
-            pos_marker=pos_marker,
             floor_marker=floor_marker,
             wall_marker=wall_marker,
+            pos_marker=pos_marker,
         )
         self.quarter_tensor = torch.sum(self._get_quarter_pos(), dim=0)
 

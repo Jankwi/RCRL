@@ -37,7 +37,7 @@ class SolvedRateJob(AbstractJob):
         env: VectorizedEnvironment = None,
         env_class: Type[VectorizedEnvironment] = None,
         ve: ValueEstimator = None,
-        print_solved_rates: bool = True,
+        print_stats: bool = True,
         force_store_on_cpu: bool = False,
         gin_config: Dict[str, str] = None,
     ) -> None:
@@ -60,7 +60,7 @@ class SolvedRateJob(AbstractJob):
             else PassthroughDataset(file_sets_path=file_sets_path, device=self.device)
         )
 
-        self.print_solved_rates = print_solved_rates
+        self.print_stats = print_stats
         self.needs_answers = self.env.requires_answers()
 
         self.n_boards = n_boards
@@ -90,6 +90,7 @@ class SolvedRateJob(AbstractJob):
                         i=fb,
                         device=self.store_device,
                         append_answers=self.needs_answers,
+                        print_stats=self.print_stats,
                     )
                     if self.needs_answers:
                         frames, frame_answers = frames
@@ -130,7 +131,7 @@ class SolvedRateJob(AbstractJob):
                     self.starting_frames[i], frame_answers
                 )
 
-        if self.print_solved_rates:
+        if self.print_stats:
             print('Solved rates:')
             for key, value in solved_rates.items():
                 print(f'{key}: {value:.4f}')

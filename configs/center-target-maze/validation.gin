@@ -1,0 +1,10 @@
+run.seed = 67
+run.job_class = @ValidationJob
+    ValidationJob.dataset_path = 'data/center-target-maze-13/valid'
+    ValidationJob.n_unsolved_renders = 5
+    ValidationJob.chunk_size = 128
+    ValidationJob.env_cls = @VectorizedTargetMaze
+        VectorizedTargetMaze.grid_dim = 13
+    ValidationJob.pass_dummy_spec_mgr = False
+    ValidationJob.n_gifs = 0
+

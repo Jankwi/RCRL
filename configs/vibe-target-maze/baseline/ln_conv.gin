@@ -31,4 +31,6 @@ run.job_class = @TrainJob
         MetricsJob.checkpoint_models = 'haha...no'
         MetricsJob.env_class = @VectorizedTargetMaze
             VectorizedTargetMaze.grid_dim = 21
+            VectorizedTargetMaze.target_marker = 2
+            VectorizedTargetMaze.pos_marker = 3
         MetricsJob.ve_class = @ManyGoalsValueEstimator

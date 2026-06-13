@@ -54,18 +54,18 @@ class VectorizedColorfulMaze(AbstractVectorizedMaze):
         device: torch.device,
         grid_dim: int = 10,
         k_targets: int = 3,
-        pos_marker: int = 10,
         floor_marker: int = 1,
         wall_marker: int = 0,
+        pos_marker: int = 10,
         spec_mgr: SpecialStateManager = None,
     ) -> None:
         assert k_targets <= (pos_marker - 2)
         super().__init__(
             device=device,
             grid_dim=grid_dim,
-            pos_marker=pos_marker,
             floor_marker=floor_marker,
             wall_marker=wall_marker,
+            pos_marker=pos_marker,
         )
         self.k_targets = k_targets
         self.spec_mgr = spec_mgr

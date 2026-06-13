@@ -114,8 +114,17 @@ class ValidationJob:
         return total_first, total_all, total_first / total_all
 
     def get_traj_stats(self) -> None:
+        min_len, max_len = None, None
+
+        def update_len_stats(lengths: torch.Tensor) -> None:
+            nonlocal min_len, max_len
+            batch_min, batch_max = lengths.min().item(), lengths.max().item()
+            min_len = batch_min if min_len is None else min(min_len, batch_min)
+            max_len = batch_max if max_len is None else max(max_len, batch_max)
+
         valid, solved = [], []
         for tensors, _ in self.dataset:
+            update_len_stats(tensors['lengths'])
             valid.append(count_valid_transitions(**tensors, env=self.env, anm_mgr=self.anm_mgr))
             solved.append(count_solved_trajectories(**tensors, env=self.env, anm_mgr=self.anm_mgr))
 
@@ -125,6 +134,7 @@ class ValidationJob:
         print(f'{valid_tr} out of {all_tr} transitions are valid ({prc_tr:.2%})')
         solved_tr, all_tr, prc_solved = self._process_stats(solved)
         print(f'{solved_tr} out of {all_tr} trajectories are solved ({prc_solved:.2%})')
+        print(f'Trajectory lengths range from {min_len} to {max_len}')
         print('---------------------------------------')
 
     def execute(self) -> None:

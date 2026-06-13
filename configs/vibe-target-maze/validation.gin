@@ -4,4 +4,6 @@ run.job_class = @ValidationJob
     ValidationJob.dataset_cls = @PassthroughDataset
     ValidationJob.env_cls = @VectorizedTargetMaze
         VectorizedTargetMaze.grid_dim = 21
+        VectorizedTargetMaze.target_marker = 2
+        VectorizedTargetMaze.pos_marker = 3
     ValidationJob.n_gifs = 5

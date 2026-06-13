@@ -107,6 +107,7 @@ class AbstractContrastiveDataset(IterableDataset):
         device: torch.device = None,
         use_preloaded: bool = True,
         append_answers: bool = False,
+        print_stats: bool = False,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """Samples starting positions from random k trajectories from a random file.
 
@@ -125,6 +126,9 @@ class AbstractContrastiveDataset(IterableDataset):
         device = device if device is not None else self.device
         indices = torch.randperm(len(trajectories))[:k]
         trajectories, lengths = trajectories[indices], lengths[indices]
+
+        if print_stats:
+            print(f'Random {i} back, went over in {(lengths <= i).sum().item()} out of {k} cases')
 
         time_idx = (lengths - 1 - i).clamp_min(0)
         positions = trajectories[torch.arange(k), time_idx].clone().to(device)

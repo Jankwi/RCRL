@@ -2,8 +2,13 @@ import pytest
 import torch
 from torch.testing import assert_close
 
-from src.envs.maze import AbstractVectorizedMaze
+from src.envs.maze import AbstractVectorizedMaze, MaxOneTargetMaze
 from src.envs.maze.utils import get_pos_indices
+
+_FLR = 0
+_WLL = 1
+_POS = 2
+_TGT = 3
 
 
 class AbstractVectorizedMazeTestingSubclass(AbstractVectorizedMaze):
@@ -36,12 +41,59 @@ class SevensTestMaze(AbstractVectorizedMaze):
         return 7 * torch.ones(states.shape[0], device=states.device, dtype=states.dtype)
 
 
+class MaxOneTargetTestMaze(MaxOneTargetMaze):
+    """Dummy concrete subclass for exercising MaxOneTargetMaze.get_covered_pos."""
+
+    def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
+        return states
+
+    def is_solved(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
+        return torch.zeros(states.shape[0], dtype=torch.bool, device=states.device)
+
+
+class TestMaxOneTargetMaze:
+    """Tests the shared get_covered_pos logic of MaxOneTargetMaze."""
+
+    def setup_method(self, method):
+        self.floor_marker = _FLR
+        self.wall_marker = _WLL
+        self.pos_marker = _POS
+
+    @pytest.mark.parametrize(
+        'target_marker, states, expected_covered',
+        [
+            # target present (agent off target) -> agent covers floor
+            (_TGT, [[[_FLR, _FLR], [_POS, _TGT]]], [_FLR]),
+            # target absent (agent covering it) -> agent covers the target
+            (_TGT, [[[_FLR, _FLR], [_POS, _FLR]]], [_TGT]),
+            # mixed batch: board 0 target visible, board 1 target covered
+            (_TGT, [[[_FLR, _TGT], [_POS, _FLR]], [[_FLR, _FLR], [_POS, _FLR]]], [_FLR, _TGT]),
+            # no target marker -> always floor, regardless of board contents.
+            # Boards filled only with floor/wall/agent markers (never the target value).
+            (None, [[[_FLR, _WLL], [_POS, _FLR]], [[_WLL, _POS], [_FLR, _WLL]]], [_FLR, _FLR]),
+        ],
+    )
+    def test_get_covered_pos(self, target_marker, states, expected_covered, device_fx):
+        states = torch.tensor(states, device=device_fx)
+        expected_covered = torch.tensor(expected_covered, device=device_fx)
+        env = MaxOneTargetTestMaze(
+            device=device_fx,
+            grid_dim=states.shape[-1],
+            floor_marker=self.floor_marker,
+            wall_marker=self.wall_marker,
+            target_marker=target_marker,
+            pos_marker=self.pos_marker,
+        )
+        covered = env.get_covered_pos(states)
+        assert_close(covered, expected_covered)
+
+
 class TestAbstractVectorizedMazePositions:
     """Tests AbstractVectorizedMaze's methods related to positions, and making moves"""
 
     def setup_method(self, method):
-        self.pos_marker = 3
-        self.target_marker = 2
+        self.pos_marker = _POS
+        self.target_marker = _TGT
         self.seed = 42
 
     @pytest.mark.parametrize(
@@ -50,38 +102,38 @@ class TestAbstractVectorizedMazePositions:
             # action 0 (up): batch of 2, both legal
             #   board 0: agent (1,0)→(0,0) free   board 1: agent (1,1)→(0,1) free
             (
-                [[[0, 0], [3, 0]], [[0, 0], [0, 3]]],
+                [[[_FLR, _FLR], [_POS, _FLR]], [[_FLR, _FLR], [_FLR, _POS]]],
                 0,
                 [True, True],
-                [[[3, 0], [0, 0]], [[0, 3], [0, 0]]],
+                [[[_POS, _FLR], [_FLR, _FLR]], [[_FLR, _POS], [_FLR, _FLR]]],
                 AbstractVectorizedMazeTestingSubclass,
             ),
             # Same us above, but with a target in the second board
             (
-                [[[0, 0], [3, 0]], [[0, 0], [2, 3]]],
+                [[[_FLR, _FLR], [_POS, _FLR]], [[_FLR, _FLR], [_TGT, _POS]]],
                 0,
                 [True, True],
-                [[[3, 0], [0, 0]], [[0, 3], [2, 0]]],
+                [[[_POS, _FLR], [_FLR, _FLR]], [[_FLR, _POS], [_TGT, _FLR]]],
                 AbstractVectorizedMazeTestingSubclass,
             ),
             # action 1 (right): board 0 legal (0,0)→(0,1) free, board 1 illegal boundary clamped
             (
-                [[[3, 0], [0, 1]], [[0, 3], [0, 0]]],
+                [[[_POS, _FLR], [_FLR, _WLL]], [[_FLR, _POS], [_FLR, _FLR]]],
                 1,
                 [True, False],
-                [[[0, 3], [0, 1]]],
+                [[[_FLR, _POS], [_FLR, _WLL]]],
                 AbstractVectorizedMazeTestingSubclass,
             ),
             # action 2 (down): single board, boundary hit (1,0) clamped → illegal
-            ([[[0, 1], [3, 0]]], 2, [False], [], AbstractVectorizedMazeTestingSubclass),
+            ([[[_FLR, _WLL], [_POS, _FLR]]], 2, [False], [], AbstractVectorizedMazeTestingSubclass),
             # action 1 (right): agent blocked by wall to the right, (1,0)→(1,1)=wall → illegal
-            ([[[0, 0], [3, 1]]], 1, [False], [], AbstractVectorizedMazeTestingSubclass),
+            ([[[_FLR, _FLR], [_POS, _WLL]]], 1, [False], [], AbstractVectorizedMazeTestingSubclass),
             # Left (illegal, legal), but with sevens
             (
-                [[[1, 3], [7, 7]], [[7, 7], [7, 3]]],
+                [[[_WLL, _POS], [7, 7]], [[7, 7], [7, _POS]]],
                 3,
                 [False, True],
-                [[[7, 7], [3, 7]]],
+                [[[7, 7], [_POS, 7]]],
                 SevensTestMaze,
             ),
         ],
@@ -110,9 +162,9 @@ class TestAbstractVectorizedMazePositions:
         'states_data, action_no, expected_legal',
         [
             # 3x3 all-sevens, agent at centre (1,1), move right → legal
-            ([[[7, 7, 7], [7, 3, 7], [7, 7, 7]]], 1, [True]),
+            ([[[7, 7, 7], [7, _POS, 7], [7, 7, 7]]], 1, [True]),
             # 3x3 all-sevens, agent at left edge (1,0), move left → boundary clamp → illegal
-            ([[[7, 7, 7], [3, 7, 7], [7, 7, 7]]], 3, [False]),
+            ([[[7, 7, 7], [_POS, 7, 7], [7, 7, 7]]], 3, [False]),
         ],
     )
     def test_preview_action_on_covered_positions(
@@ -120,9 +172,9 @@ class TestAbstractVectorizedMazePositions:
     ):
         """Tests the preview_action method on the SevensTestMaze env"""
         grid_dim = len(states_data[0])
-        env = SevensTestMaze(device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker)
+        env = SevensTestMaze(device=device_fx, grid_dim=grid_dim, pos_marker=_POS)
         states = torch.tensor(states_data, device=device_fx)
-        old_positions = get_pos_indices(states, grid_dim, self.pos_marker)
+        old_positions = get_pos_indices(states, grid_dim, _POS)
 
         new_states, legal_move = env.preview_action(states.clone(), action_no)
 

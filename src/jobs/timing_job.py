@@ -65,7 +65,7 @@ class TimingJob(AbstractJob):
             env=self.env,
             ve=self.ve,
             dataset=self.dataset,
-            print_solved_rates=False,
+            print_stats=False,
             gin_config=None,
         )
         self.repeats = repeats

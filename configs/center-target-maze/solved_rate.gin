@@ -1,0 +1,7 @@
+run.seed = 67
+run.job_class = @SolvedRateJob
+    SolvedRateJob.file_sets_path = 'data/center-target-maze-13/train'
+    SolvedRateJob.env_class = @VectorizedTargetMaze
+        VectorizedTargetMaze.grid_dim = 13
+    SolvedRateJob.n_boards = 32768
+    SolvedRateJob.frames_back = [4, 8]

@@ -5,11 +5,16 @@ from torch.testing import assert_close
 from src.common import fix_seed
 from src.envs.maze.target import VectorizedTargetMaze
 
+_FLR = 0
+_WLL = 1
+_POS = 2
+_TGT = 3
+
 
 class TestVectorizedTargetMaze:
     def setup_method(self, method):
-        self.pos_marker = 3
-        self.target_marker = 2
+        self.pos_marker = _POS
+        self.target_marker = _TGT
         self.seed = 42
         fix_seed(self.seed)
 
@@ -20,15 +25,15 @@ class TestVectorizedTargetMaze:
         states = torch.randint(0, 2, (n, grid_dim, grid_dim), device=device_fx)
         target = torch.randint(0, grid_dim, (n, 2), device=device_fx)
         pos = torch.randint(0, grid_dim, (n, 2), device=device_fx)
-        states[:, pos[:, 0], pos[:, 1]] = 0
-        states[:, target[:, 0], target[:, 1]] = 0
+        states[:, pos[:, 0], pos[:, 1]] = _FLR
+        states[:, target[:, 0], target[:, 1]] = _FLR
         batch_idx = torch.arange(n, device=device_fx)
 
         expected_goals = states.clone()
-        expected_goals[batch_idx, target[:, 0], target[:, 1]] = self.pos_marker
+        expected_goals[batch_idx, target[:, 0], target[:, 1]] = _POS
 
-        states[batch_idx, target[:, 0], target[:, 1]] = self.target_marker
-        states[batch_idx, pos[:, 0], pos[:, 1]] = self.pos_marker
+        states[batch_idx, target[:, 0], target[:, 1]] = _TGT
+        states[batch_idx, pos[:, 0], pos[:, 1]] = _POS
 
         env = VectorizedTargetMaze(device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker)
         goals = env.generate_goals(states.clone())
@@ -42,8 +47,8 @@ class TestVectorizedTargetMaze:
         pos = torch.randint(0, grid_dim, (n, 2), device=device_fx)
         batch_idx = torch.arange(n, device=device_fx)
 
-        states[batch_idx, target[:, 0], target[:, 1]] = self.target_marker
-        states[batch_idx, pos[:, 0], pos[:, 1]] = self.pos_marker
+        states[batch_idx, target[:, 0], target[:, 1]] = _TGT
+        states[batch_idx, pos[:, 0], pos[:, 1]] = _POS
 
         is_solved = torch.all(pos == target, dim=1)
         env = VectorizedTargetMaze(device=device_fx, grid_dim=grid_dim, pos_marker=self.pos_marker)
@@ -53,7 +58,10 @@ class TestVectorizedTargetMaze:
         'states, action, expected_solved',
         [
             (
-                [[[3, 0, 1], [2, 1, 0], [1, 0, 1]], [[0, 0, 1], [2, 3, 0], [1, 0, 1]]],
+                [
+                    [[_POS, _FLR, _WLL], [_TGT, _WLL, _FLR], [_WLL, _FLR, _WLL]],
+                    [[_FLR, _FLR, _WLL], [_TGT, _POS, _FLR], [_WLL, _FLR, _WLL]],
+                ],
                 2,
                 [True, False],
             )
@@ -74,3 +82,30 @@ class TestVectorizedTargetMaze:
         new_states, legality = env.preview_action(states, action_no=action)
         solved = env.is_solved(new_states, goals)
         assert_close(solved, expected_solved)
+
+    @pytest.mark.parametrize(
+        'states, action, expected_states',
+        [
+            (
+                # agent sits on the target cell (0,0), so target is absent;
+                # action 1 (right) vacates (0,0) -> target restored, agent now at (0,1)
+                [[[_POS, _FLR], [_FLR, _FLR]]],
+                1,
+                [[[_TGT, _POS], [_FLR, _FLR]]],
+            )
+        ],
+    )
+    def test_preview_action_restores_target(self, states, action, expected_states, device_fx):
+        """When the agent leaves a covered target, the target marker reappears."""
+        states = torch.tensor(states, device=device_fx)
+        expected_states = torch.tensor(expected_states, device=device_fx)
+
+        env = VectorizedTargetMaze(
+            device=device_fx,
+            grid_dim=states.shape[-1],
+            target_marker=_TGT,
+            pos_marker=_POS,
+        )
+        new_states, legality = env.preview_action(states.clone(), action_no=action)
+        assert legality.all()
+        assert_close(new_states, expected_states)
