@@ -3,7 +3,7 @@ import random
 import re
 from abc import abstractmethod
 from contextlib import contextmanager
-from typing import Dict, Iterator, List, Tuple
+from typing import Dict, Iterator, List, Tuple, Union
 
 import gin
 import joblib
@@ -12,6 +12,7 @@ import torch
 from tensordict import TensorDict
 from torch.utils.data import IterableDataset
 
+from src.contrastivelib.datasets.utils import extract_answers
 from src.contrastivelib.utils.special import SpecialStateManager
 
 
@@ -73,21 +74,45 @@ class AbstractContrastiveDataset(IterableDataset):
         k: int,
         device: torch.device = None,
         use_preloaded: bool = True,
-    ) -> torch.Tensor:
-        """Samples starting positions from random k trajectories from a random file"""
+        append_answers: bool = False,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        """Samples starting positions from random k trajectories from a random file.
+
+        If append_answers is True, also returns the terminal (solved) state of each
+        sampled trajectory, paired by the same indices, as a (positions, answers) tuple.
+        """
         if use_preloaded and hasattr(self, 'preloaded'):
             trajectories = self.preloaded[self.master_tn]
+            lengths = self.preloaded['lengths'] if append_answers else None
         else:
-            traj_file = random.choice(self.file_sets)[self.master_tn]
-            trajectories = self._load_tensor(traj_file)
+            file_set = random.choice(self.file_sets)
+            trajectories = self._load_tensor(file_set[self.master_tn])
+            lengths = self._load_tensor(file_set['lengths']) if append_answers else None
+
         assert len(trajectories) >= k
+        device = device if device is not None else self.device
         indices = torch.randperm(len(trajectories))[:k]
-        return trajectories[indices, 0].clone().to(device if device is not None else self.device)
+        starting = trajectories[indices, 0].clone().to(device)
+
+        if not append_answers:
+            return starting
+
+        answers = extract_answers(trajectories[indices], lengths[indices]).to(device)
+        return starting, answers
 
     def get_random_ith_last_positions(
-        self, k: int, i: int, device: torch.device = None, use_preloaded: bool = True
-    ) -> torch.Tensor:
-        """Samples starting positions from random k trajectories from a random file"""
+        self,
+        k: int,
+        i: int,
+        device: torch.device = None,
+        use_preloaded: bool = True,
+        append_answers: bool = False,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        """Samples starting positions from random k trajectories from a random file.
+
+        If append_answers is True, also returns the terminal (solved) state of each
+        sampled trajectory, paired by the same indices, as a (positions, answers) tuple.
+        """
         if use_preloaded and hasattr(self, 'preloaded'):
             trajectories = self.preloaded[self.master_tn]
             lengths = self.preloaded['lengths'].to(torch.long)
@@ -97,15 +122,18 @@ class AbstractContrastiveDataset(IterableDataset):
             lengths = self._load_tensor(file_set['lengths']).to(torch.long)
 
         assert len(trajectories) >= k
+        device = device if device is not None else self.device
         indices = torch.randperm(len(trajectories))[:k]
         trajectories, lengths = trajectories[indices], lengths[indices]
 
         time_idx = (lengths - 1 - i).clamp_min(0)
-        return (
-            trajectories[torch.arange(k), time_idx]
-            .clone()
-            .to(device if device is not None else self.device)
-        )
+        positions = trajectories[torch.arange(k), time_idx].clone().to(device)
+
+        if not append_answers:
+            return positions
+
+        answers = extract_answers(trajectories, lengths).to(device)
+        return positions, answers
 
     def get_random_trajectory_ends(
         self, k: int, last_n: int = None, use_preloaded: bool = True

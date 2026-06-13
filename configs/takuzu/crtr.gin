@@ -1,0 +1,35 @@
+run.seed = 71
+run.run_name = 'crtr on optimal trajs'
+run.run_family = 'crtr'
+run.job_class = @TrainJob
+    TrainJob.embed_dim = 32
+    TrainJob.metric_name = 'L22'
+    TrainJob.normalize = False
+    TrainJob.dataset_dir = 'data/takuzu-split-sample'
+    TrainJob.epochs = 20
+    TrainJob.lr = 3e-4
+    TrainJob.loss_class = @BaselineContrastiveLoss
+    TrainJob.base_model_class = @LNConvNet
+        LNConvNet.input_network_class = @Embedding2D
+            Embedding2D.n_states = 3
+        LNConvNet.hidden_size = 32
+        LNConvNet.block_depth = 3
+    TrainJob.dataset_class = @ContrastiveDatasetNoSpecial
+        ContrastiveDatasetNoSpecial.batch_size = 256
+        ContrastiveDatasetNoSpecial.repetition_factor = 2
+    TrainJob.metrics_job_class = @MetricsJob
+        MetricsJob.logger_class = @MultipleLoggers
+            MultipleLoggers.default_log_freq = 1
+            MultipleLoggers.wandb = False
+            MultipleLoggers.skip_metrics = ['plot_embeds', 'gif']
+        MetricsJob.solved_rate_job_class = @SolvedRateJob
+            SolvedRateJob.n_boards = 256
+            SolvedRateJob.frames_back = [1, 2, 4, 8, 12, 15, 20]
+        MetricsJob.n_gifs = 0
+        MetricsJob.checkpoint_models = 'no..haha'
+        MetricsJob.envs_common = {'n': 8}
+        MetricsJob.env_class = @ExplicitGoalTakuzu
+        MetricsJob.extra_solved_rate_envs = [
+            {'env_class': @ArbitraryGoalTakuzu},
+        ]
+        MetricsJob.ve_class = @SingleGoalValueEstimator

@@ -3,6 +3,7 @@ from typing import Tuple
 import torch
 
 from jobs.utils.anomalies import AnomalyManager
+from src.contrastivelib.datasets.utils import extract_answers
 from src.envs import ValueEstimator, VectorizedEnvironment
 
 
@@ -67,8 +68,15 @@ def count_solved_trajectories(
 ) -> Tuple[int, int]:
     """Returns a (solved, total) tuple of ints"""
     batch_idx = torch.arange(len(trajectories), device=trajectories.device)
-    goals = env.generate_goals(states=trajectories[batch_idx, 1])
-    is_solved = env.is_solved(trajectories[batch_idx, (lengths - 1).long()], goals)
+    answers = extract_answers(trajectories, lengths)
+    if env.requires_answers_for_goal_generation():
+        goals = env.generate_goals(states=trajectories[batch_idx, 1], answers=answers)
+    else:
+        goals = env.generate_goals(states=trajectories[batch_idx, 1])
+    if env.requires_answers_for_solved_checking():
+        is_solved = env.is_solved(answers, goals, answers)
+    else:
+        is_solved = env.is_solved(answers, goals)
 
     if anm_mgr is not None:
         if anm_mgr.has_budget('unsolved_trajectory') and torch.any(~is_solved).item():

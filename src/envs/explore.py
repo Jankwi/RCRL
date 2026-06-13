@@ -15,9 +15,10 @@ def eval_no_search(
     ve: ValueEstimator,
     storage_class: Type[AbstractStateStorage] = ShallowStateStorage,
     max_len: Dict[str, int] = {},
+    answers: torch.Tensor = None,
 ) -> Any:  # noqa: ANN401
     """Runs a greedy simulation for each state, guided by the value estimator."""
-    storage = storage_class(states, env, states.device, **max_len)
+    storage = storage_class(states, env, states.device, answers=answers, **max_len)
 
     states = storage.active_states()
     while storage.continue_condition():

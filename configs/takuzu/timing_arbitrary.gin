@@ -1,0 +1,17 @@
+run.seed = 67
+run.job_class = @TimingJob
+    TimingJob.embed_dim = 64
+    TimingJob.metric_name = 'L2'
+    TimingJob.normalize = False
+    TimingJob.n_starting = 1024
+    TimingJob.repeats = 3
+    TimingJob.env_class = @ArbitraryGoalTakuzu
+        ArbitraryGoalTakuzu.n = 8
+    TimingJob.base_model_class = @LNConvNet
+        LNConvNet.input_network_class = @Embedding2D
+            Embedding2D.n_states = 3
+        LNConvNet.hidden_size = 32
+        LNConvNet.block_depth = 4
+    TimingJob.dataset_path = 'data/takuzu-sample'
+    TimingJob.ve_class = @SingleGoalValueEstimator
+

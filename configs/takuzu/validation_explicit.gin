@@ -1,0 +1,10 @@
+run.seed = 67
+run.job_class = @ValidationJob
+    ValidationJob.dataset_path = 'data/takuzu-sample'
+    ValidationJob.n_unsolved_renders = 5
+    ValidationJob.chunk_size = 128
+    ValidationJob.env_cls = @ExplicitGoalTakuzu
+        ExplicitGoalTakuzu.n = 8
+    ValidationJob.pass_dummy_spec_mgr = True
+    ValidationJob.n_gifs = 5
+

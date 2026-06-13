@@ -61,44 +61,73 @@ class SolvedRateJob(AbstractJob):
         )
 
         self.print_solved_rates = print_solved_rates
+        self.needs_answers = self.env.requires_answers()
 
         self.n_boards = n_boards
         with dataset.preload_file_set():
             self.store_device = torch.device('cpu') if force_store_on_cpu else self.device
 
             self.from_starting = from_starting
+            self.starting_answers = None
             if self.from_starting:
-                self.starting = dataset.get_random_starting_positions(
+                starting = dataset.get_random_starting_positions(
                     k=self.n_boards,
                     device=self.store_device,
+                    append_answers=self.needs_answers,
                 )
+                if self.needs_answers:
+                    self.starting, self.starting_answers = starting
+                else:
+                    self.starting = starting
 
             self.frames_back = frames_back
+            self.starting_frames_answers = None
             if self.frames_back is not None:
                 self.n, self.starting_frames = len(self.frames_back), None
                 for i, fb in enumerate(self.frames_back):
                     frames = dataset.get_random_ith_last_positions(
-                        k=self.n_boards, i=fb, device=self.store_device
+                        k=self.n_boards,
+                        i=fb,
+                        device=self.store_device,
+                        append_answers=self.needs_answers,
                     )
+                    if self.needs_answers:
+                        frames, frame_answers = frames
                     if self.starting_frames is None:
                         self.starting_frames = torch.empty(
                             (self.n, *frames.shape), dtype=frames.dtype, device=self.store_device
                         )
+                        if self.needs_answers:
+                            self.starting_frames_answers = torch.empty(
+                                (self.n, *frame_answers.shape),
+                                dtype=frame_answers.dtype,
+                                device=self.store_device,
+                            )
                     self.starting_frames[i] = frames
+                    if self.needs_answers:
+                        self.starting_frames_answers[i] = frame_answers
 
-    def solved_rate_scalar(self, states: torch.Tensor) -> float:
-        rate_dict = eval_no_search(states.to(self.device), self.env, self.ve)
+    def solved_rate_scalar(self, states: torch.Tensor, answers: torch.Tensor = None) -> float:
+        answers = answers.to(self.device) if answers is not None else None
+        rate_dict = eval_no_search(states.to(self.device), self.env, self.ve, answers=answers)
         return rate_dict['solved_rate']
 
     def execute(self) -> Dict[str, float]:
         solved_rates = {}
 
         if self.from_starting:
-            solved_rates['solved_rate'] = self.solved_rate_scalar(self.starting)
+            solved_rates['solved_rate'] = self.solved_rate_scalar(
+                self.starting, self.starting_answers
+            )
         if self.frames_back is not None:
             for i, fb in enumerate(self.frames_back):
+                frame_answers = (
+                    self.starting_frames_answers[i]
+                    if self.starting_frames_answers is not None
+                    else None
+                )
                 solved_rates[f'solved_rate_{fb}_back'] = self.solved_rate_scalar(
-                    self.starting_frames[i]
+                    self.starting_frames[i], frame_answers
                 )
 
         if self.print_solved_rates:

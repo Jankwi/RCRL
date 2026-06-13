@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 import gin
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,9 +23,9 @@ _BORDER_COLOR = (0.25, 0.26, 0.3, 1.0)  # slightly lighter frame
 
 
 @gin.configurable
-class VectorizedTakuzu(VectorizedEnvironment):
+class AbstractVectorizedTakuzu(VectorizedEnvironment):
     """
-    Vectorized environment for the game of Takuzu,
+    Abstract Vectorized environment for the game of Takuzu,
     where the goal is to fill an n x n grid with 2 colors so that all 3 rules are satisfied:
     1. No more than 2 of the same color can be adjacent in any row or column
     2. Each row and column must have an equal number of each color
@@ -33,8 +35,8 @@ class VectorizedTakuzu(VectorizedEnvironment):
     def __init__(
         self,
         n: int,
-        spec_mgr: SpecialStateManager,
         device: torch.device,
+        spec_mgr: SpecialStateManager = None,
         blue_marker: int = 1,
         yellow_marker: int = 2,
     ) -> None:
@@ -51,9 +53,6 @@ class VectorizedTakuzu(VectorizedEnvironment):
 
     def env_string(self) -> str:
         return 'takuzu_goal'
-
-    def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
-        return self.spec_mgr.create_many(states.shape[0])
 
     def preview_actions(
         self, states: torch.Tensor, action_tensors: torch.Tensor
@@ -81,6 +80,10 @@ class VectorizedTakuzu(VectorizedEnvironment):
         mask3 = ~same_rows.any(dim=(1, 2))
 
         return mask1 & mask2 & mask3
+
+    @abstractmethod
+    def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
+        pass
 
     # goals are not used, because they are always abstract
     def is_solved(self, states: torch.Tensor, goals: torch.Tensor) -> torch.Tensor:
@@ -132,3 +135,30 @@ class VectorizedTakuzu(VectorizedEnvironment):
         ax.set_aspect('equal')
 
         return fig
+
+
+@gin.configurable
+class VectorizedTakuzu(AbstractVectorizedTakuzu):
+    """
+    This subclass requires a special manager, to generate goals.
+    It does not condition the searcg on explicit boards.
+    """
+
+    def __init__(
+        self,
+        n: int,
+        device: torch.device,
+        spec_mgr: SpecialStateManager,  # not None by default anymore
+        blue_marker: int = 1,
+        yellow_marker: int = 2,
+    ) -> None:
+        super().__init__(
+            n=n,
+            device=device,
+            spec_mgr=spec_mgr,
+            blue_marker=blue_marker,
+            yellow_marker=yellow_marker,
+        )
+
+    def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
+        return self.spec_mgr.create_many(states.shape[0])

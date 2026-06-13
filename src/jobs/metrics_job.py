@@ -19,9 +19,12 @@ from src.envs.explore import eval_no_search
 from src.envs.maze.colorful import VectorizedColorfulMaze
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
+from src.envs.takuzu import VectorizedTakuzu
 from src.envs.takuzu.arbitrary import ArbitraryGoalTakuzu
-from src.envs.visual import get_embed_plots, get_trajectory_gifs
+from src.envs.takuzu.explicit import ExplicitGoalTakuzu
+from src.envs.visual import get_embed_plots
 from src.jobs.solved_rate_job import SolvedRateJob
+from src.jobs.traj_vis_job import TrajectoryVisualizationJob
 from src.jobs.utils.logging import (
     AbstractLogger,
     BestValOsLogger,
@@ -56,6 +59,7 @@ class MetricsJob:
         default_validset_class: Type[AbstractContrastiveDataset] = None,
         spec_mgr_param: Dict[str, SpecialStateManager] = {},
         solved_rate_job_class: Type[SolvedRateJob] = SolvedRateJob,
+        traj_vis_job_class: Type[TrajectoryVisualizationJob] = TrajectoryVisualizationJob,
         gin_config: Dict[str, str] = None,
         checkpoint_dir: str = 'checkpoints',
         checkpoint_models: str = 'dont',  # one of 'dont', 'local', 'log'
@@ -66,7 +70,9 @@ class MetricsJob:
         n_corr_trajs: int = 128,
         append_loss_metrics: bool = True,
         metrics_on_trainset: bool = True,
-        second_env_class: Type[VectorizedEnvironment] = None,
+        envs_common: Dict = {},
+        extra_solved_rate_envs: List[Dict] = [],
+        primary_sr_params: Dict = {},
         multi_env_aggregation_type: str = None,
         multi_env_aggregation_name: str = None,
     ) -> None:
@@ -92,44 +98,59 @@ class MetricsJob:
         if metrics_on_trainset:
             self.datasets[_TRAIN_STR] = trainset
 
-        self.envs: List[VectorizedEnvironment] = []
-        self.envs.append(env_class(device=device, **spec_mgr_param))
-        if second_env_class is not None:
-            self.envs.append(second_env_class(device=device, **spec_mgr_param))
-
         self.ve = ve_class(model=self.model, sim_fn=sim_fn, device=self.device)
 
         self.checkpoint_models = checkpoint_models
-        self.n_gifs, self.gif_max_len = n_gifs, gif_max_len
         self.n_embed_trajs, self.embed_plot_max_len = n_embed_trajs, embed_plot_max_len
         self.n_corr_trajs = n_corr_trajs
         self.append_loss_metrics = append_loss_metrics
         self.epoch_dir = ''
 
-        self.solved_rate_jobs: List[Dict[str, SolvedRateJob]] = [{}]
-        if len(self.envs) == 2:
-            self.solved_rate_jobs.append({})
-
         self.multi_env_aggregation_type = multi_env_aggregation_type
         self.multi_env_aggregation_name = multi_env_aggregation_name
 
-        for i, env in enumerate(self.envs):
-            self.solved_rate_jobs[i][_VALID_STR] = solved_rate_job_class(
-                device=self.device,
-                env=env,
-                ve=self.ve,
-                print_solved_rates=False,
-                dataset=self.datasets[_VALID_STR],
-            )
+        # The primary env (also used for rendering/gifs/embeds) first, then the
+        # solved-rate-only extra envs. Each env gets its own solved rate job per split.
+        splits = [_VALID_STR] + ([_TRAIN_STR] if self.metrics_on_trainset else [])
+        env_specs = [{'env_class': env_class, 'sr_params': primary_sr_params}]
+        env_specs += extra_solved_rate_envs
 
-            if self.metrics_on_trainset:
-                self.solved_rate_jobs[i][_TRAIN_STR] = solved_rate_job_class(
-                    device=self.device,
+        self.envs: List[VectorizedEnvironment] = []
+        self.solved_rate_jobs: List[Dict[str, SolvedRateJob]] = []
+        self.traj_vis_jobs: List[TrajectoryVisualizationJob] = []
+        for spec in env_specs:
+            spec = {'env_params': {}, 'sr_params': {}, 'vis_params': {}, **spec}
+            env = spec['env_class'](
+                device=device, **envs_common, **spec['env_params'], **spec_mgr_param
+            )
+            self.envs.append(env)
+            self.solved_rate_jobs.append(
+                {
+                    split: solved_rate_job_class(
+                        device=self.device,
+                        env=env,
+                        ve=self.ve,
+                        print_solved_rates=False,
+                        dataset=self.datasets[split],
+                        **spec['sr_params'],
+                    )
+                    for split in splits
+                }
+            )
+            # Every env gets gifs equally: n_gifs is the fallback default, and each env
+            # can override count/length via its own vis_params.
+            vis_params = {'gif_max_len': gif_max_len, **spec['vis_params']}
+            self.traj_vis_jobs.append(
+                traj_vis_job_class(
                     env=env,
                     ve=self.ve,
-                    print_solved_rates=False,
-                    dataset=self.datasets[_TRAIN_STR],
+                    device=self.device,
+                    spec_mgr=spec_mgr_param.get('spec_mgr'),
+                    logger=self.logger,
+                    default_n_gifs=n_gifs,
+                    **vis_params,
                 )
+            )
 
     def _get_epoch_dir(self, epoch: int) -> str:
         epoch_dir = f'{self.checkpoint_dir}/{epoch}/'
@@ -200,26 +221,15 @@ class MetricsJob:
                 self.logger.log_state_dicts(epoch, {'model': model_path, 'optimizer': optim_path})
 
     @metric_action('gif')
-    def create_trajectory_gifs(self, epoch: int, split: str) -> None:
+    def create_trajectory_gifs(self, epoch: int, split: str) -> Dict[str, float]:
         """
-        Creates gifs, with subsequent frames depicting subsequent trajectory states.
-        Always works on the primary environment.
+        Creates per-env trajectory visualizations (gifs, goal renders, board logs).
+        Each env writes into its own subdir of the epoch's gifs directory.
         """
-        if self.n_gifs == 0:
-            return
-
-        env = self.envs[0]
-        starting = self.datasets[split].get_random_starting_positions(k=self.n_gifs)
-        materials = get_trajectory_gifs(starting, env, self.ve, self.gif_max_len)
-        dir = f'{self._get_epoch_dir(epoch)}/gifs'
-        os.makedirs(dir, exist_ok=True)
-
-        gifs_dict: Dict[str, str] = {}
-        for i, frames in enumerate(materials):
-            filename = f'{dir}/trajectory-{split}-{i}.gif'
-            frames[0].save(filename, save_all=True, append_images=frames[1:], duration=200, loop=0)
-            gifs_dict[f'{split}_trajectory-{i}-gif'] = filename
-        self.logger.log_gifs(epoch, gifs_dict)
+        out_dir = f'{self._get_epoch_dir(epoch)}/gifs'
+        for job in self.traj_vis_jobs:
+            job.execute(self.datasets[split], out_dir, split, epoch)
+        return {}
 
     @metric_action('plot_embeds')
     def plot_trajectory_embeddings(self, epoch: int, split: str) -> None:

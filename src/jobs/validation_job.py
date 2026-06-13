@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import torch
 
 from src.contrastivelib.datasets import AbstractContrastiveDataset, PassthroughDataset
+from src.contrastivelib.datasets.utils import extract_answers
 from src.envs import VectorizedEnvironment
 from src.envs.explore import eval_no_search
 from src.envs.maze.colorful import VectorizedColorfulMaze
@@ -53,6 +54,7 @@ class ValidationJob:
         self.env = env_cls(device=self.device, **extra_args)
         self.n_gifs = n_gifs
         self.n_solved_rate = n_solved_rate
+        self.needs_answers = self.env.requires_answers()
 
         self.save_dir = dataset_path + save_dir
         os.makedirs(self.save_dir, exist_ok=True)
@@ -92,11 +94,16 @@ class ValidationJob:
     def get_sanity_check_solved_rate(self) -> None:
         tensors = self.dataset.get_random_trajectory_data(self.n_solved_rate)
         starting = tensors['trajectories'][:, 0]
+        answers = (
+            extract_answers(tensors['trajectories'], tensors['lengths'])
+            if self.needs_answers
+            else None
+        )
         ve = DataBasedValueEstimator(
             tensors['trajectories'], tensors['lengths'], device=self.device
         )
 
-        solved_rate = eval_no_search(starting, self.env, ve)['solved_rate']
+        solved_rate = eval_no_search(starting, self.env, ve, answers=answers)['solved_rate']
         print('---------------------------------------')
         print(f'Sanity check {solved_rate=}')
         print('---------------------------------------')

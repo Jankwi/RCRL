@@ -7,7 +7,7 @@ run.tags = {
 }
 run.job_class = @TrainJob
     TrainJob.embed_dim = 64
-    TrainJob.metric_name = 'L2'
+    TrainJob.metric_name = 'L22'
     TrainJob.normalize = False
     TrainJob.dataset_dir='/home/jankwi/projects/compass/CRTR-compass/data/takuzu-split-sample'
     TrainJob.epochs = 10
@@ -38,6 +38,10 @@ run.job_class = @TrainJob
             SolvedRateJob.frames_back = [1, 2]
         MetricsJob.n_gifs = 0
         MetricsJob.checkpoint_models = 'no..haha'
+        MetricsJob.envs_common = {'n': 8}
         MetricsJob.env_class = @VectorizedTakuzu
-            VectorizedTakuzu.n = 8
+        MetricsJob.extra_solved_rate_envs = [
+            {'env_class': @ArbitraryGoalTakuzu},
+            {'env_class': @ExplicitGoalTakuzu},
+        ]
         MetricsJob.ve_class = @SingleGoalValueEstimator

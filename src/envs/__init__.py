@@ -72,6 +72,20 @@ class VectorizedEnvironment(ABC):
     def render_state(self, state: np.ndarray) -> Figure:
         pass
 
+    def requires_answers_for_goal_generation(self) -> bool:
+        """Whether the generate_goals() method requires the solved state to be provided."""
+        return False
+
+    def requires_answers_for_solved_checking(self) -> bool:
+        """Whether the is_solved() method requires the solved state to be provided."""
+        return False
+
+    def requires_answers(self) -> bool:
+        return (
+            self.requires_answers_for_goal_generation()
+            or self.requires_answers_for_solved_checking()
+        )
+
 
 class ValueEstimator(ABC):
     """Layer of abstraction for estimating the value of positions"""

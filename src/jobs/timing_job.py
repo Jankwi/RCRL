@@ -13,11 +13,11 @@ from src.contrastivelib.metrics.sims import get_similarity_measure
 from src.contrastivelib.networks import BroNet, ConvNet, Embedding2D, LNConvNet, LNDenseNet
 from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
 from src.envs import ValueEstimator, VectorizedEnvironment
-from src.envs.explore import eval_no_search
 from src.envs.maze.colorful import VectorizedColorfulMaze
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.jobs import AbstractJob
+from src.jobs.solved_rate_job import SolvedRateJob
 
 
 @gin.configurable
@@ -60,7 +60,15 @@ class TimingJob(AbstractJob):
 
         self.env = env_class(device=self.device, spec_mgr=spec_mgr)
         self.ve = ve_class(model=self.model, sim_fn=sim_fn, device=self.device)
-        self.n_starting, self.repeats = n_starting, repeats
+        self.srj = SolvedRateJob(
+            n_boards=n_starting,
+            env=self.env,
+            ve=self.ve,
+            dataset=self.dataset,
+            print_solved_rates=False,
+            gin_config=None,
+        )
+        self.repeats = repeats
 
         print('-----Initalized TimingJob-----------')
         for name, value in gin_config.items():
@@ -73,23 +81,18 @@ class TimingJob(AbstractJob):
             torch.cuda.empty_cache()
 
         self.model.eval()
-        starting = self.dataset.get_random_starting_positions(self.n_starting)
+        n_starting = self.srj.n_boards
         start_time = perf_counter()
         with torch.inference_mode():
             for _ in range(self.repeats):
-                eval_no_search(
-                    env=self.env,
-                    ve=self.ve,
-                    states=starting,
-                )
+                self.srj.execute()
         end_time = perf_counter()
-        print(f'Evaluation of {self.repeats} runs for {self.n_starting} states finished')
+        print(f'Evaluation of {self.repeats} runs for {n_starting} states finished')
         print(f'Total eval time: {end_time - start_time:.4f} seconds')
         print(
-            f'Avg eval time for {self.n_starting} states: '
-            f'{(end_time - start_time) / self.repeats:.4f} s'
+            f'Avg eval time for {n_starting} states: {(end_time - start_time) / self.repeats:.4f} s'
         )
         print(
             f'Avg eval time per state: '
-            f'{(end_time - start_time) / (self.repeats * self.n_starting):.6f} s'
+            f'{(end_time - start_time) / (self.repeats * n_starting):.6f} s'
         )

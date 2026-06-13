@@ -2,11 +2,11 @@ import gin
 import torch
 
 from src.contrastivelib.utils.special import SpecialStateManager
-from src.envs.takuzu import VectorizedTakuzu
+from src.envs.takuzu import AbstractVectorizedTakuzu
 
 
 @gin.configurable
-class ArbitraryGoalTakuzu(VectorizedTakuzu):
+class ArbitraryGoalTakuzu(AbstractVectorizedTakuzu):
     """
     Vectorized environment for the game of Takuzu,
     which uses random board pixel fills as arbitrary goals

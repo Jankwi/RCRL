@@ -20,6 +20,7 @@ class AbstractStateStorage(ABC):
         starting_positions: torch.Tensor,
         env: VectorizedEnvironment,
         device: torch.device,
+        answers: torch.Tensor = None,
     ) -> None:
         self.device = device
         self.env = env
@@ -28,7 +29,11 @@ class AbstractStateStorage(ABC):
         self.active_idx = torch.arange(self.n_games, device=self.device)
 
         self.states = starting_positions.clone()
-        self.goals = self.env.generate_goals(self.states)
+        self.answers = answers
+        if self.env.requires_answers_for_goal_generation():
+            self.goals = self.env.generate_goals(self.states, self.answers)
+        else:
+            self.goals = self.env.generate_goals(self.states)
         self.sets = self.env.get_state_sets(n_sets=len(self.states))
 
     @abstractmethod
@@ -43,7 +48,16 @@ class AbstractStateStorage(ABC):
                 (0, *self.states.shape[1:]), device=self.device, dtype=self.states.dtype
             )
 
-        solved_mask = self.env.is_solved(self.states[self.active_idx], self.goals[self.active_idx])
+        if self.env.requires_answers_for_solved_checking():
+            solved_mask = self.env.is_solved(
+                self.states[self.active_idx],
+                self.goals[self.active_idx],
+                self.answers[self.active_idx],
+            )
+        else:
+            solved_mask = self.env.is_solved(
+                self.states[self.active_idx], self.goals[self.active_idx]
+            )
         self.new_iteration(solved_mask)
 
         self.solved_cnt += solved_mask.sum().item()
@@ -123,9 +137,12 @@ class DeepStateStorage(AbstractStateStorage):
         starting_positions: torch.Tensor,
         env: VectorizedEnvironment,
         device: torch.device,
+        answers: torch.Tensor = None,
         max_len: int = 128,
     ) -> None:
-        super().__init__(starting_positions=starting_positions, env=env, device=device)
+        super().__init__(
+            starting_positions=starting_positions, env=env, device=device, answers=answers
+        )
         state_shape = starting_positions.shape[1:]
         self.max_len = max_len
         self.trajectories = torch.zeros(
@@ -148,7 +165,12 @@ class DeepStateStorage(AbstractStateStorage):
 
     def get_result(self) -> Tuple[TensorDict, Dict[str, float]]:
         tensors = TensorDict(
-            {'trajectories': self.trajectories, 'lengths': self.lengths, 'outcome': self.outcome},
+            {
+                'trajectories': self.trajectories,
+                'lengths': self.lengths,
+                'outcome': self.outcome,
+                'goals': self.goals,
+            },
             batch_size=[self.n_games],
         )
         return tensors, self._get_solved_rate()
