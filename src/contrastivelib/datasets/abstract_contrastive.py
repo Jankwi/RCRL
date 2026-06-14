@@ -69,6 +69,60 @@ class AbstractContrastiveDataset(IterableDataset):
         del file_set_tensordict
         return ret
 
+    def get_starting(
+        self,
+        data: TensorDict,
+        append_answers: bool = False,
+        device: torch.device = None,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        """Extracts first-frame starting positions from an already-sampled trajectory TensorDict.
+
+        Does no sampling of its own, so multiple calls on the same `data` (e.g. paired with
+        get_ith_back) stay consistent. If append_answers is True, also returns the terminal
+        (solved) state of each trajectory as a (positions, answers) tuple.
+        """
+        device = device if device is not None else self.device
+        trajectories = data[self.master_tn]
+        starting = trajectories[:, 0].clone().to(device)
+
+        if not append_answers:
+            return starting
+
+        answers = extract_answers(trajectories, data['lengths']).to(device)
+        return starting, answers
+
+    def get_ith_back(
+        self,
+        data: TensorDict,
+        i: int,
+        append_answers: bool = False,
+        device: torch.device = None,
+        print_stats: bool = False,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        """Extracts positions i steps before the goal (clamped to the start) from a TensorDict.
+
+        Does no sampling of its own, so it shares trajectories with get_starting when both are
+        called on the same `data`. If append_answers is True, also returns the terminal (solved)
+        state of each trajectory as a (positions, answers) tuple.
+        """
+        device = device if device is not None else self.device
+        trajectories = data[self.master_tn]
+        lengths = data['lengths'].to(torch.long)
+        k = len(trajectories)
+
+        if print_stats:
+            print(f'{i} back, went over in {(lengths <= i).sum().item()} out of {k} cases')
+
+        time_idx = (lengths - 1 - i).clamp_min(0)
+        batch_idx = torch.arange(k, device=trajectories.device)
+        positions = trajectories[batch_idx, time_idx].clone().to(device)
+
+        if not append_answers:
+            return positions
+
+        answers = extract_answers(trajectories, lengths).to(device)
+        return positions, answers
+
     def get_random_starting_positions(
         self,
         k: int,
@@ -81,24 +135,8 @@ class AbstractContrastiveDataset(IterableDataset):
         If append_answers is True, also returns the terminal (solved) state of each
         sampled trajectory, paired by the same indices, as a (positions, answers) tuple.
         """
-        if use_preloaded and hasattr(self, 'preloaded'):
-            trajectories = self.preloaded[self.master_tn]
-            lengths = self.preloaded['lengths'] if append_answers else None
-        else:
-            file_set = random.choice(self.file_sets)
-            trajectories = self._load_tensor(file_set[self.master_tn])
-            lengths = self._load_tensor(file_set['lengths']) if append_answers else None
-
-        assert len(trajectories) >= k
-        device = device if device is not None else self.device
-        indices = torch.randperm(len(trajectories))[:k]
-        starting = trajectories[indices, 0].clone().to(device)
-
-        if not append_answers:
-            return starting
-
-        answers = extract_answers(trajectories[indices], lengths[indices]).to(device)
-        return starting, answers
+        data = self.get_random_trajectory_data(k, use_preloaded=use_preloaded)
+        return self.get_starting(data, append_answers=append_answers, device=device)
 
     def get_random_ith_last_positions(
         self,
@@ -109,35 +147,15 @@ class AbstractContrastiveDataset(IterableDataset):
         append_answers: bool = False,
         print_stats: bool = False,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-        """Samples starting positions from random k trajectories from a random file.
+        """Samples i-th-last positions from random k trajectories from a random file.
 
         If append_answers is True, also returns the terminal (solved) state of each
         sampled trajectory, paired by the same indices, as a (positions, answers) tuple.
         """
-        if use_preloaded and hasattr(self, 'preloaded'):
-            trajectories = self.preloaded[self.master_tn]
-            lengths = self.preloaded['lengths'].to(torch.long)
-        else:
-            file_set = random.choice(self.file_sets)
-            trajectories = self._load_tensor(file_set[self.master_tn])
-            lengths = self._load_tensor(file_set['lengths']).to(torch.long)
-
-        assert len(trajectories) >= k
-        device = device if device is not None else self.device
-        indices = torch.randperm(len(trajectories))[:k]
-        trajectories, lengths = trajectories[indices], lengths[indices]
-
-        if print_stats:
-            print(f'Random {i} back, went over in {(lengths <= i).sum().item()} out of {k} cases')
-
-        time_idx = (lengths - 1 - i).clamp_min(0)
-        positions = trajectories[torch.arange(k), time_idx].clone().to(device)
-
-        if not append_answers:
-            return positions
-
-        answers = extract_answers(trajectories, lengths).to(device)
-        return positions, answers
+        data = self.get_random_trajectory_data(k, use_preloaded=use_preloaded)
+        return self.get_ith_back(
+            data, i, append_answers=append_answers, device=device, print_stats=print_stats
+        )
 
     def get_random_trajectory_ends(
         self, k: int, last_n: int = None, use_preloaded: bool = True

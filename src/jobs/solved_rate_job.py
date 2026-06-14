@@ -67,11 +67,15 @@ class SolvedRateJob(AbstractJob):
         with dataset.preload_file_set():
             self.store_device = torch.device('cpu') if force_store_on_cpu else self.device
 
+            # Sample one shared set of trajectories so the global solved_rate and every
+            # i-back score are computed on the same boards (apples-to-apples, monotonic).
+            data = dataset.get_random_trajectory_data(k=self.n_boards)
+
             self.from_starting = from_starting
             self.starting_answers = None
             if self.from_starting:
-                starting = dataset.get_random_starting_positions(
-                    k=self.n_boards,
+                starting = dataset.get_starting(
+                    data,
                     device=self.store_device,
                     append_answers=self.needs_answers,
                 )
@@ -85,8 +89,8 @@ class SolvedRateJob(AbstractJob):
             if self.frames_back is not None:
                 self.n, self.starting_frames = len(self.frames_back), None
                 for i, fb in enumerate(self.frames_back):
-                    frames = dataset.get_random_ith_last_positions(
-                        k=self.n_boards,
+                    frames = dataset.get_ith_back(
+                        data,
                         i=fb,
                         device=self.store_device,
                         append_answers=self.needs_answers,
