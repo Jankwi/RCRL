@@ -39,7 +39,7 @@ class ContrastiveDatasetNoSpecial(AbstractContrastiveDataset):
         batch_idx = torch.arange(len(trajectories), device=self.device)
 
         t0 = self.sampler.bounded_uniform(lengths - 1)
-        t1 = t0 + self.sampler.clamped_geometric(lengths - 1 - t0)
+        t1 = t0 + self.sampler.bounded_geometric(lengths - 1 - t0)
         return (
             {'state': trajectories[batch_idx, t0], 'goal': trajectories[batch_idx, t1]},
             {},
