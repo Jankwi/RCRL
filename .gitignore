@@ -6,6 +6,7 @@ CLAUDE.md
 .venv/
 checkpoints/
 data/
+logs/
 __pycache__/
 */__pycache__/
 */*/__pycache__/
