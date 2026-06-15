@@ -12,6 +12,17 @@ from src.jobs.train_job import *  # noqa: F403
 from src.jobs.validation_job import *  # noqa: F403
 
 
+def read_bindings_files(bindings_files: list) -> list:
+    bindings = []
+    for bindings_file in bindings_files:
+        with open(bindings_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    bindings.append(line)
+    return bindings
+
+
 def gin_config_to_dict(config_str: str) -> Dict[str, str]:
     result = {}
     lines = iter(config_str.splitlines())
@@ -49,7 +60,14 @@ if __name__ == '__main__':
         nargs='*',
         default=[],
         metavar='BIND',
-        help='Gin bindings like "run.Trainjob.seed=1"',
+        help='Gin bindings like "run.TrainJob.seed=1"',
+    )
+    parser.add_argument(
+        '--binding_files',
+        nargs='*',
+        default=[],
+        metavar='FILE',
+        help='Path(s) to gin file(s); each non-empty, non-comment line is treated as a binding',
     )
     parser.add_argument(
         '--only_parse',
@@ -59,7 +77,8 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
-    gin.parse_config_files_and_bindings(config_files=[args.config_file], bindings=args.gin_bindings)
+    bindings = read_bindings_files(args.binding_files) + args.gin_bindings
+    gin.parse_config_files_and_bindings(config_files=[args.config_file], bindings=bindings)
 
     if not args.only_parse:
         print('====Starting run====')
