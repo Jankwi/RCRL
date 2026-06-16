@@ -1,6 +1,6 @@
 run.seed = 67
-run.run_name = 'positive vs negative clf in-traj positives'
-run.run_family = 'new-aug-clf'
+run.name = 'positive vs negative clf in-traj positives'
+run.family = 'new-aug-clf'
 run.job_class = @TrainJob
     TrainJob.embed_dim = 1
     TrainJob.metric_name = 'L2'

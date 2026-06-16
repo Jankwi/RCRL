@@ -1,6 +1,6 @@
 run.seed = 67
-run.run_name = 'takuzu augment preview - min one bad pixel choice'
-run.run_family = 'augment-preview'
+run.name = 'takuzu augment preview - min one bad pixel choice'
+run.family = 'augment-preview'
 run.tags = {'augment_type': 'min-one-bad-pixel-choice'}
 run.job_class = @AugmentPreviewJob
     AugmentPreviewJob.dataset_path = 'data/takuzu-sample'

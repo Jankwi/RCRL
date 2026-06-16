@@ -1,6 +1,6 @@
 run.seed = 71
-run.run_name = 'crtr on optimal trajs'
-run.run_family = 'crtr'
+run.name = 'crtr on optimal trajs'
+run.family = 'crtr'
 run.job_class = @TrainJob
     TrainJob.embed_dim = 32
     TrainJob.metric_name = 'L22'

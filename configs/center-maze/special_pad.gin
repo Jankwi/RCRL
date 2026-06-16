@@ -1,6 +1,6 @@
 run.seed = 71
-run.run_name = 'special padding center maze'
-run.run_family = 'center-dev'
+run.name = 'special padding center maze'
+run.family = 'center-dev'
 run.job_class = @TrainJob
     TrainJob.embed_dim = 32
     TrainJob.metric_name = 'L22'

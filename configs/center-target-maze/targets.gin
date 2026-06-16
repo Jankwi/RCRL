@@ -1,6 +1,6 @@
 run.seed = 71
-run.run_name = 'explicit targets'
-run.run_family = 'center-dev'
+run.name = 'explicit targets'
+run.family = 'center-dev'
 run.job_class = @TrainJob
     TrainJob.embed_dim = 32
     TrainJob.metric_name = 'L22'

@@ -1,6 +1,6 @@
 run.seed = 67
-run.run_name = 'takuzu tiny train'
-run.run_family = 'demo'
+run.name = 'takuzu tiny train'
+run.family = 'demo'
 run.tags = {
     'fictional_jobid': '2137',
     'TIMESTAMP': '2024-06-17T12:00:00',

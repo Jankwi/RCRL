@@ -41,8 +41,8 @@ def run(
     seed: int,
     job_class: Type[AbstractJob],
     gin_config: Dict[str, str],
-    run_name: str = 'no name set',
-    run_family: str = 'undeclared',
+    name: str = 'no name set',
+    family: str = 'undeclared',
     tags: Dict[str, str] = {},
 ):
     fix_seed(seed)
