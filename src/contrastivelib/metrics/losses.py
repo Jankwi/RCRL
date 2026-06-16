@@ -208,20 +208,29 @@ class AbstractLinearSupConLoss(AbstractContrastiveLoss):
         metrics = {}
         if append_metrics:
             with torch.no_grad():
-                metrics['elementwise_accuracy'] = (pos_sims > neg_sims).float().mean().item()
+                # neg_sims is (n_pos * k_negatives,); reshape to (k_negatives, n_pos) so each
+                # positive is compared against its own negatives.
+                neg_grouped = neg_sims.reshape(-1, pos_sims.shape[0])
+                metrics['elementwise_accuracy'] = (
+                    (pos_sims.unsqueeze(0) > neg_grouped).float().mean().item()
+                )
         return (loss, metrics) if (append_metrics or append_empty) else loss
 
 
 @gin.configurable
 class ElementwiseSupConLoss(AbstractLinearSupConLoss):
     """
-    Optimizes elementwise fractions
-    exp(sim(pos_i, special))/(exp(sim(pos_i, special)) + exp(sim(neg_i, special)))
+    Optimizes per-positive fractions
+    exp(sim(pos_i, special))/(exp(sim(pos_i, special)) + sum_j exp(sim(neg_ij, special)))
+    where neg_ij are the k_negatives negatives paired with positive i.
     """
 
     def _calc_loss(self, pos_sims: torch.Tensor, neg_sims: torch.Tensor) -> torch.Tensor:
-        pos_neg = torch.stack([pos_sims, neg_sims], dim=1)
-        denominator = torch.logsumexp(pos_neg, dim=1)
+        n = pos_sims.shape[0]
+        # neg_sims is (n * k_negatives,), laid out as k_negatives tiles of n.
+        neg_grouped = neg_sims.reshape(-1, n)  # (k_negatives, n)
+        pos_neg = torch.cat([pos_sims.unsqueeze(0), neg_grouped], dim=0)  # (1 + k_negatives, n)
+        denominator = torch.logsumexp(pos_neg, dim=0)  # (n,)
         fraction = pos_sims - denominator
         return -fraction.mean()
 
