@@ -1,0 +1,13 @@
+run.seed = 67
+run.run_name = 'takuzu augment preview - all random pixel choice'
+run.run_family = 'augment-preview'
+run.tags = {'augment_type': 'all-random-pixel-choice'}
+run.job_class = @AugmentPreviewJob
+    AugmentPreviewJob.dataset_path = 'data/takuzu-sample'
+    AugmentPreviewJob.n_renders = 4
+    AugmentPreviewJob.save_dir = '/augment-previews/all-random-pixel-choice'
+    AugmentPreviewJob.aug = @AllRandomPixelChoice()
+        AllRandomPixelChoice.default_temporal_dist = 3
+    AugmentPreviewJob.env_class = @VectorizedTakuzu
+        VectorizedTakuzu.n = 8
+        VectorizedTakuzu.spec_mgr = None

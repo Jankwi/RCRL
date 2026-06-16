@@ -1,52 +1,96 @@
-from abc import ABC, abstractmethod
-from typing import Tuple
+from abc import abstractmethod
 
 import gin
 import torch
 
-from src.envs.utils import sample_random_on
+from src.envs.augment import AbstractAugmentation, InnerResult
+from src.envs.utils import indices_to_mask, sample_random_on
 
 
-class AbstractTakuzuAugmentation(ABC):
+class AbstractTakuzuAugmentation(AbstractAugmentation):
+    """
+    Abstract class for Takuzu-specific augmentations.
+    If custom_positive is True,
+    creates a positive example with the same pixel placement as the negative.
+    """
+
+    def supports_custom_positive(self) -> bool:
+        return True
+
     @abstractmethod
-    def __call__(
-        self, states: torch.Tensor, full_board: torch.Tensor, specific_k: torch.Tensor = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Returns (positive, negative) Takuzu boards."""
+    def _augment(
+        self, pivot_state: torch.Tensor, sampled_mask: torch.Tensor, full_board: torch.Tensor
+    ) -> torch.Tensor:
         pass
+
+    def _inner_call(
+        self,
+        trajectories: torch.Tensor,
+        lengths: torch.Tensor,
+        pivot_idx: torch.Tensor,
+        temporal_dist: torch.Tensor,
+        batch_idx: torch.Tensor,
+        custom_positive: bool = False,
+    ) -> InnerResult:
+        pivot_state = trajectories[batch_idx, pivot_idx]
+        full_board = trajectories[batch_idx, lengths - 1]
+        max_t_dist = torch.amax(temporal_dist).item()
+
+        indices, valid = sample_random_on(pivot_state == 0, max_t_dist)
+        pos_range = torch.arange(max_t_dist, device=pivot_state.device).unsqueeze(0)
+        valid = valid & (pos_range < temporal_dist.unsqueeze(1))
+        sampled_mask = indices_to_mask(indices, valid, pivot_state)
+
+        negative = self._augment(pivot_state, sampled_mask, full_board)
+        if custom_positive:
+            positive = trajectories[batch_idx, pivot_idx].clone()
+            positive[sampled_mask] = full_board[sampled_mask]
+            return negative, positive
+        return negative
 
 
 @gin.configurable
-class BadRandomPixelChoice(AbstractTakuzuAugmentation):
-    """Augmentation which makes k wrong pixel choices."""
+class AllBadPixelChoice(AbstractTakuzuAugmentation):
+    """Fills random pixels with the wrong value."""
 
-    def __init__(self, k_flipped: int = None) -> None:
-        self.k_flipped = k_flipped
+    def _augment(
+        self, pivot_state: torch.Tensor, sampled_mask: torch.Tensor, full_board: torch.Tensor
+    ) -> torch.Tensor:
+        negative = pivot_state.clone()
+        negative[sampled_mask] = 3 - full_board[sampled_mask]
+        return negative
 
-    def __call__(
-        self, states: torch.Tensor, full_board: torch.Tensor, specific_k: torch.Tensor = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        batch_size = states.shape[0]
-        flat_dim = states.numel() // batch_size
 
-        max_k = torch.amax(specific_k).item() if specific_k is not None else self.k_flipped
-        assert max_k is not None, 'Either k_flipped or specific_k must be provided.'
+@gin.configurable
+class MinOneBadPixelChoice(AbstractTakuzuAugmentation):
+    """Fills random pixels randomly, but guarantees that at least one is wrong."""
 
-        indices, valid = sample_random_on(states == 0, max_k)
+    def _augment(
+        self, pivot_state: torch.Tensor, sampled_mask: torch.Tensor, full_board: torch.Tensor
+    ) -> torch.Tensor:
+        negative = pivot_state.clone()
 
-        if specific_k is not None:
-            pos_range = torch.arange(max_k, device=states.device).unsqueeze(0)
-            valid = valid & (pos_range < specific_k.unsqueeze(1))
+        random_full = torch.randint_like(full_board, low=1, high=3)
+        negative[sampled_mask] = random_full[sampled_mask]
 
-        flip_mask_flat = torch.zeros(
-            batch_size, flat_dim + 1, dtype=torch.bool, device=states.device
-        )
-        safe_indices = torch.where(valid, indices, flat_dim)
-        flip_mask_flat.scatter_(1, safe_indices, True)
-        flip_mask = flip_mask_flat[:, :-1].view_as(states)
+        # Pick one already-sampled cell per board and force it to the wrong value,
+        # so at least one corruption is guaranteed. Boards with no sampled cells
+        # (full board or temporal_dist == 0) yield an empty bad_mask and are skipped.
+        bad_idx, bad_valid = sample_random_on(sampled_mask, 1)
+        bad_mask = indices_to_mask(bad_idx, bad_valid, pivot_state)
+        negative[bad_mask] = 3 - full_board[bad_mask]
 
-        positive = states.clone()
-        positive[flip_mask] = full_board[flip_mask]
-        negative = states.clone()
-        negative[flip_mask] = 3 - full_board[flip_mask]
-        return positive, negative
+        return negative
+
+
+@gin.configurable
+class AllRandomPixelChoice(AbstractTakuzuAugmentation):
+    """Fills random pixels randomly."""
+
+    def _augment(
+        self, pivot_state: torch.Tensor, sampled_mask: torch.Tensor, full_board: torch.Tensor
+    ) -> torch.Tensor:
+        negative = pivot_state.clone()
+        random_full = torch.randint_like(full_board, low=1, high=3)
+        negative[sampled_mask] = random_full[sampled_mask]
+        return negative

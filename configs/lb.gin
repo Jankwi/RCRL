@@ -1,5 +1,5 @@
 # bindings for local gin runs (smaller data, for faster sanity checks)
 LNConvNet.hidden_size = 32
-LNConvNet.block_depth = 3
+LNConvNet.block_depth = 4
 SolvedRateJob.n_boards = 256
 MultipleLoggers.wandb = False

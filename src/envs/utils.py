@@ -20,3 +20,19 @@ def sample_random_on(mask: torch.Tensor, k: int) -> torch.Tensor:
 
     flat_indices[~flat_valid] = -1
     return flat_indices, flat_valid
+
+
+def indices_to_mask(indices: torch.Tensor, valid: torch.Tensor, like: torch.Tensor) -> torch.Tensor:
+    """
+    Builds a boolean mask over `like` from flattened (indices, valid) pairs, as returned
+    by `sample_random_on`. `like` is a (batch_size, *board) template; the returned mask has
+    the same shape, with True at every valid sampled index. Invalid samples are scattered
+    into a throwaway column and dropped.
+    """
+    batch_size = like.shape[0]
+    flat_dim = like.numel() // batch_size
+
+    mask_flat = torch.zeros(batch_size, flat_dim + 1, dtype=torch.bool, device=like.device)
+    safe_indices = torch.where(valid, indices, flat_dim)
+    mask_flat.scatter_(1, safe_indices, True)
+    return mask_flat[:, :-1].view_as(like)
