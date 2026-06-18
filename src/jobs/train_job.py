@@ -19,6 +19,7 @@ from src.contrastivelib.datasets import (
 from src.contrastivelib.metrics.losses import (
     AbstractContrastiveLoss,
     BaselineContrastiveLoss,
+    ElementwiseRelativeLoss,
     ElementwiseSupConLoss,
     MetricAccumulator,
     SparseSupConLoss,

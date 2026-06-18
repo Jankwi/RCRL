@@ -238,6 +238,16 @@ class AbstractContrastiveDataset(IterableDataset):
             del self.preloaded
             self.preloaded_prefix, self.preloaded_batches = None, None
 
+    def _get_t01(self, lengths: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        t0 = self.sampler.bounded_uniform(lengths - 1)
+        if self.geom_type == 'bounded':
+            t1 = t0 + self.sampler.bounded_geometric(lengths - 1 - t0)
+        elif self.geom_type == 'clamped':
+            t1 = t0 + self.sampler.clamped_geometric(lengths - 1 - t0)
+        else:
+            raise ValueError(f'Unknown geom_type: {self.geom_type}')
+        return t0, t1
+
     @abstractmethod
     def contrastive_pick(
         self, **kwargs: torch.Tensor

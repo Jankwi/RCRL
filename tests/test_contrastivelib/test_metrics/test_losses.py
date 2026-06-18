@@ -4,6 +4,7 @@ from torch.testing import assert_close
 
 from src.contrastivelib.metrics.losses import (
     BaselineContrastiveLoss,
+    ElementwiseRelativeLoss,
     ElementwiseSupConLoss,
     MetricAccumulator,
 )
@@ -144,6 +145,97 @@ def test_elementwise_supcon_k1_matches_legacy_stack(device_fx):
     loss = _elementwise_loss(device_fx)._calc_loss(pos_sims, neg_sims)
     legacy = -(pos_sims - torch.logsumexp(torch.stack([pos_sims, neg_sims], dim=1), dim=1)).mean()
     assert_close(loss, legacy)
+
+
+def _relative_loss(device):
+    sim_fn = L2SimilarityMeasure(normalize=False)
+    return ElementwiseRelativeLoss(embed_dim=EMBED_DIM, sim_fn=sim_fn, device=device)
+
+
+def _brute_force_relative(loss_fn, pos_state, neg_states, goal):
+    """
+    Naive per-positive InfoNCE against a per-sample goal, mirroring the dataset's
+    (n, k) -> (n * k) negative layout (neg of positive b, slot i is row b * k + i).
+    Distances are negated to similarity logits so smaller distance scores higher.
+    """
+    sim_fn, tau = loss_fn.sim_fn, loss_fn.tau
+    n = pos_state.shape[0]
+    k = neg_states.shape[0] // n
+    losses, correct = [], []
+    for b in range(n):
+        pg = -sim_fn(pos_state[b : b + 1], goal[b : b + 1], 'elementwise')[0] / tau
+        ngs = []
+        for i in range(k):
+            neg = neg_states[b * k + i].unsqueeze(0)
+            ng = -sim_fn(neg, goal[b : b + 1], 'elementwise')[0] / tau
+            ngs.append(ng)
+            correct.append(float(pg > ng))
+        denom = torch.logsumexp(torch.stack([pg, *ngs]), dim=0)
+        losses.append(-(pg - denom))
+    return torch.stack(losses).mean(), sum(correct) / len(correct)
+
+
+@pytest.mark.parametrize('k', [1, 2, 5])
+def test_relative_matches_brute_force(device_fx, k):
+    torch.manual_seed(0)
+    n = 6
+    pos_state = torch.randn(n, EMBED_DIM, device=device_fx)
+    neg_states = torch.randn(n * k, EMBED_DIM, device=device_fx)
+    goal = torch.randn(n, EMBED_DIM, device=device_fx)
+
+    loss_fn = _relative_loss(device_fx)
+    loss, metrics = loss_fn(pos_state, neg_states, goal, append_metrics=True)
+    expected_loss, expected_acc = _brute_force_relative(loss_fn, pos_state, neg_states, goal)
+
+    assert loss.shape == torch.Size([])
+    assert_close(loss, expected_loss)
+    assert_close(torch.tensor(metrics['elementwise_accuracy']), torch.tensor(expected_acc))
+
+
+def test_relative_uses_per_sample_goal(device_fx):
+    """Each positive must be scored against its OWN goal (elementwise), not all-pairs (cross).
+
+    With pos_state == goal (distinct rows) and far negatives, every positive sits exactly on
+    its goal, so accuracy is 1.0 — a cross-product implementation would mismatch rows.
+    """
+    torch.manual_seed(2)
+    n, k = 5, 3
+    goal = torch.randn(n, EMBED_DIM, device=device_fx) * 5.0
+    pos_state = goal.clone()
+    neg_states = goal.repeat_interleave(k, dim=0) + 100.0  # far from every goal
+
+    loss_fn = _relative_loss(device_fx)
+    _, metrics = loss_fn(pos_state, neg_states, goal, append_metrics=True)
+    assert_close(torch.tensor(metrics['elementwise_accuracy']), torch.tensor(1.0))
+
+
+def test_relative_pulls_positive_toward_goal(device_fx):
+    """Positive close to its goal must yield a lower loss than a positive far from it.
+
+    This pins the sign: distances are negated into similarity logits, so the softmax
+    rewards (not penalises) proximity to the goal.
+    """
+    torch.manual_seed(3)
+    n, k = 4, 2
+    goal = torch.randn(n, EMBED_DIM, device=device_fx)
+    neg_states = torch.randn(n * k, EMBED_DIM, device=device_fx) + 10.0
+
+    loss_fn = _relative_loss(device_fx)
+    close_loss = loss_fn(goal.clone() + 0.01, neg_states, goal)
+    far_loss = loss_fn(goal.clone() + 10.0, neg_states, goal)
+    assert close_loss < far_loss
+
+
+def test_relative_no_metrics_by_default(device_fx):
+    torch.manual_seed(4)
+    n, k = 4, 2
+    pos_state = torch.randn(n, EMBED_DIM, device=device_fx)
+    neg_states = torch.randn(n * k, EMBED_DIM, device=device_fx)
+    goal = torch.randn(n, EMBED_DIM, device=device_fx)
+
+    result = _relative_loss(device_fx)(pos_state, neg_states, goal)
+    assert isinstance(result, torch.Tensor)
+    assert result.shape == torch.Size([])
 
 
 @pytest.mark.parametrize('n_updates', [1, 3])

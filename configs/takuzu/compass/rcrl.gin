@@ -1,0 +1,12 @@
+include 'configs/takuzu/compass/common.gin'
+
+run.name = 'rcl to abstract compass vector on Takuzu'
+MetricsJob.checkpoint_dir = 'checkpoints/compass/rcrl'
+TrainJob.loss_class = @ElementwiseRelativeLoss
+TrainJob.dataset_class = @RelativeContrastiveDataset
+    RelativeContrastiveDataset.batch_size = 512
+    RelativeContrastiveDataset.aug_class = @AllBadPixelChoice
+    RelativeContrastiveDataset.gamma = 0.9
+    RelativeContrastiveDataset.negs_per_pos = 3
+    RelativeContrastiveDataset.max_prev = 1
+    RelativeContrastiveDataset.geom_type = 'clamped'

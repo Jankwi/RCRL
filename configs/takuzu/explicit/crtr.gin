@@ -1,0 +1,9 @@
+include 'configs/takuzu/explicit/common.gin'
+
+run.name = 'crtr on explicit trajs'
+MetricsJob.checkpoint_dir = 'checkpoints/explicit/crtr'
+TrainJob.loss_class = @BaselineContrastiveLoss
+TrainJob.dataset_class = @ContrastiveDatasetNoSpecial
+    ContrastiveDatasetNoSpecial.batch_size = 512
+    ContrastiveDatasetNoSpecial.repetition_factor = 2
+    ContrastiveDatasetNoSpecial.geom_type = 'clamped'

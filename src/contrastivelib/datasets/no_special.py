@@ -20,6 +20,7 @@ class ContrastiveDatasetNoSpecial(AbstractContrastiveDataset):
         device: torch.device,
         gamma: float = 0.9,
         repetition_factor: int = 1,
+        geom_type: str = 'bounded',
     ) -> None:
         super().__init__(
             file_sets_path=file_sets_path,
@@ -30,6 +31,7 @@ class ContrastiveDatasetNoSpecial(AbstractContrastiveDataset):
         self.device = device
         self.repetition_factor = repetition_factor
         self.sampler = DistributionSampler(device=self.device, gamma=gamma)
+        self.geom_type = geom_type
 
     def contrastive_pick(
         self, trajectories: torch.Tensor, lengths: torch.Tensor
@@ -38,8 +40,7 @@ class ContrastiveDatasetNoSpecial(AbstractContrastiveDataset):
         lengths = torch.repeat_interleave(lengths.to(torch.long), self.repetition_factor, dim=0)
         batch_idx = torch.arange(len(trajectories), device=self.device)
 
-        t0 = self.sampler.bounded_uniform(lengths - 1)
-        t1 = t0 + self.sampler.bounded_geometric(lengths - 1 - t0)
+        t0, t1 = self._get_t01(lengths)
         return (
             {'state': trajectories[batch_idx, t0], 'goal': trajectories[batch_idx, t1]},
             {},

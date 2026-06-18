@@ -40,6 +40,9 @@ class AbstractContrastiveLoss(ABC):
     def cross_dist_logits(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return self.sim_fn(a, b, 'cross') / self.tau
 
+    def elem_dist_logits(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return self.sim_fn(a, b, 'elementwise') / self.tau
+
 
 @gin.configurable
 class BaselineContrastiveLoss(AbstractContrastiveLoss):
@@ -249,3 +252,42 @@ class SparseSupConLoss(AbstractLinearSupConLoss):
         denominator = torch.logsumexp(denom_terms, dim=1)
         fraction = pos_sims - denominator
         return -fraction.mean()
+
+
+@gin.configurable
+class ElementwiseRelativeLoss(AbstractContrastiveLoss):
+    """
+    Optimizes per-positive fractions
+    exp(sim(pos_i, goal_i))/(exp(sim(pos_i, goal_i)) + sum_j exp(sim(neg_ij, goal_i)))
+    where neg_ij are the k_negatives negatives paired with positive i.
+    """
+
+    def __call__(
+        self,
+        pos_state: torch.Tensor,
+        neg_states: torch.Tensor,
+        goal: torch.Tensor,
+        append_metrics: bool = False,
+        append_empty: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, Dict[str, float]]:
+        n = pos_state.shape[0]
+        # neg_states is (n * k_negatives, ...); reshape to (n, k_negatives, ...) so each
+        # positive is compared against its own negatives.
+        neg_grouped = neg_states.reshape(n, -1, *neg_states.shape[1:])
+        # Elementwise (per-sample goal), negated so smaller distance is a larger similarity logit.
+        pos_goal = -self.elem_dist_logits(pos_state, goal)  # (n,)
+        neg_goal = -self.elem_dist_logits(neg_grouped, goal.unsqueeze(1))  # (n, k_negatives)
+
+        # neg_goal is (n, k_negatives); concatenate with pos_goal to get (n, 1 + k_negatives)
+        pos_neg = torch.cat([pos_goal.unsqueeze(1), neg_goal], dim=1)
+        denominator = torch.logsumexp(pos_neg, dim=1)
+        fraction = pos_goal - denominator
+        loss = -fraction.mean()
+
+        metrics = {}
+        if append_metrics:
+            with torch.no_grad():
+                metrics['elementwise_accuracy'] = (
+                    (pos_goal.unsqueeze(1) > neg_goal).float().mean().item()
+                )
+        return (loss, metrics) if (append_metrics or append_empty) else loss
