@@ -3,18 +3,18 @@ from typing import Dict, Tuple, Type
 import gin
 import torch
 
-from src.contrastivelib.datasets.abstract_contrastive import AbstractContrastiveDataset
+from src.contrastivelib.datasets.special_padding import DatasetWithPadding
 from src.contrastivelib.utils.distributions import DistributionSampler
 from src.contrastivelib.utils.special import SpecialStateManager
 from src.envs.augment import AbstractAugmentation
 
 
 @gin.configurable
-class RelativeContrastiveDataset(AbstractContrastiveDataset):
+class RelativeContrastiveDataset(DatasetWithPadding):
     """
     Relative Contrastive learning.
 
-    When a spec_mgr is provided, each trajectory is padded with a single special "solved" token
+    When pad_special is True, each trajectory is padded with a single special "solved" token
     right after its last real state, so the goal can land on the learned special embedding while
     the positive and negatives always stay on real states.
     """
@@ -37,13 +37,13 @@ class RelativeContrastiveDataset(AbstractContrastiveDataset):
             device=device,
             chunk_size=batch_size,
             spec_mgr=spec_mgr,
+            pad_special=spec_mgr is not None,
         )
         self.device = device
         self.k_negatives = negs_per_pos
         self.max_prev = max_prev
         self.sampler = DistributionSampler(device=self.device, gamma=gamma)
         self.aug = aug_class()
-        self.pad_special = spec_mgr is not None
         self.geom_type = geom_type
 
     def contrastive_pick(
@@ -52,18 +52,12 @@ class RelativeContrastiveDataset(AbstractContrastiveDataset):
         lengths = lengths.to(torch.long)
         batch_idx = torch.arange(trajectories.shape[0], device=self.device)
 
-        if self.pad_special:
-            # Append one special "solved" token right after each trajectory's last real state.
-            spec_states = self.spec_mgr.create_many(len(trajectories)).to(trajectories.dtype)
-            trajectories = torch.cat((trajectories, spec_states.unsqueeze(1)), dim=1)
-            trajectories[batch_idx, lengths] = spec_states
+        trajectories, sample_lengths = self._pad_special(trajectories, lengths)
 
         # Bump the length by one (when padding) only for sampling t0/t1, so the goal can reach the
         # appended special token at index `lengths`. The augmentation below keeps the real
         # `lengths`, since it reads the true solved board at `lengths - 1`; the bumped value would
         # point it at the special token instead.
-        sample_lengths = lengths + int(self.pad_special)
-
         t0, t1 = self._get_t01(sample_lengths - 1)
         t0, t1 = t0 + 1, t1 + 1
         pos_state = trajectories[batch_idx, t0]

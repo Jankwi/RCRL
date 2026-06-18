@@ -1,4 +1,5 @@
-from typing import Dict, Tuple
+from abc import abstractmethod
+from typing import Dict, List, Tuple
 
 import gin
 import torch
@@ -8,7 +9,59 @@ from src.contrastivelib.utils.distributions import DistributionSampler
 from src.contrastivelib.utils.special import SpecialStateManager
 
 
-class _AbstractPadded(AbstractContrastiveDataset):
+class DatasetWithPadding(AbstractContrastiveDataset):
+    def __init__(
+        self,
+        file_sets_path: str,
+        tensor_names: List[str],
+        device: torch.device,
+        chunk_size: int,
+        spec_mgr: SpecialStateManager = None,
+        pad_special: bool = False,
+        master_tn: str = 'trajectories',
+    ) -> None:
+        super().__init__(
+            file_sets_path=file_sets_path,
+            tensor_names=tensor_names,
+            device=device,
+            chunk_size=chunk_size,
+            master_tn=master_tn,
+            spec_mgr=spec_mgr,
+        )
+        self.pad_special = pad_special
+
+    def _pad_special(
+        self, trajectories: torch.Tensor, lengths: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Appends one special state per trajectory when pad_special is True.
+
+        Returns (trajectories, sample_lengths) where sample_lengths = lengths + 1 if padded.
+        """
+        if not self.pad_special:
+            return trajectories, lengths
+        batch_idx = torch.arange(len(trajectories), device=self.device)
+        spec_states = self.spec_mgr.create_many(len(trajectories)).to(trajectories.dtype)
+        trajectories = torch.cat((trajectories, spec_states.unsqueeze(1)), dim=1)
+        trajectories[batch_idx, lengths] = spec_states
+        return trajectories, lengths + 1
+
+    @abstractmethod
+    def contrastive_pick(
+        self, **kwargs: torch.Tensor
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+        pass
+
+
+@gin.configurable
+class PaddedCRTRDataset(DatasetWithPadding):
+    """
+    CRTR dataset that pads each trajectory with a single special state.
+
+    The geom_type controls how out-of-range geometric samples are handled:
+      'clamped'  — samples pile up at the boundary (infinite-padding semantics)
+      'bounded'  — samples wrap via modulo (single-special-state semantics)
+    """
+
     def __init__(
         self,
         file_sets_path: str,
@@ -17,6 +70,7 @@ class _AbstractPadded(AbstractContrastiveDataset):
         spec_mgr: SpecialStateManager,
         gamma: float = 0.9,
         repetition_factor: int = 1,
+        geom_type: str = 'clamped',
     ) -> None:
         super().__init__(
             file_sets_path=file_sets_path,
@@ -24,9 +78,11 @@ class _AbstractPadded(AbstractContrastiveDataset):
             device=device,
             chunk_size=int(batch_size / repetition_factor),
             spec_mgr=spec_mgr,
+            pad_special=True,
         )
         self.device = device
         self.repetition_factor = repetition_factor
+        self.geom_type = geom_type
         self.sampler = DistributionSampler(device=self.device, gamma=gamma)
 
     def contrastive_pick(
@@ -36,33 +92,10 @@ class _AbstractPadded(AbstractContrastiveDataset):
         lengths = torch.repeat_interleave(lengths.to(torch.long), self.repetition_factor, dim=0)
         batch_idx = torch.arange(len(trajectories), device=self.device)
 
-        spec_states = self.spec_mgr.create_many(len(trajectories)).to(trajectories.dtype)
-        trajectories = torch.cat((trajectories, spec_states.unsqueeze(1)), dim=1)
-        trajectories[batch_idx, lengths] = spec_states
+        trajectories, sample_lengths = self._pad_special(trajectories, lengths)
 
-        t0, t1 = self._get_t01(lengths + 1)
+        t0, t1 = self._get_t01(sample_lengths)
         return (
             {'state': trajectories[batch_idx, t0], 'goal': trajectories[batch_idx, t1]},
             {},
         )
-
-
-@gin.configurable
-class ContrastiveDatasetSpecialPadding(_AbstractPadded):
-    """
-    Uses CRTR, but instead of rescaling the geometric distribution,
-    maps the out of range indices to the special states.
-
-    In other words, pads each trajectory with an infinite number of special states.
-    """
-
-    geom_type = 'clamped'
-
-
-@gin.configurable
-class ContrastiveDatasetSingleSpecial(_AbstractPadded):
-    """
-    Uses CRTR, appending a single special state at the end of every trajectory.
-    """
-
-    geom_type = 'bounded'

@@ -3,6 +3,7 @@ include 'configs/takuzu/compass/common.gin'
 run.name = 'rcl to abstract compass vector on Takuzu'
 MetricsJob.checkpoint_dir = 'checkpoints/compass/crtr'
 TrainJob.loss_class = @BaselineContrastiveLoss
-TrainJob.dataset_class = @ContrastiveDatasetSingleSpecial
-    ContrastiveDatasetSingleSpecial.batch_size = 512
-    ContrastiveDatasetSingleSpecial.repetition_factor = 2
+TrainJob.dataset_class = @PaddedCRTRDataset
+    PaddedCRTRDataset.batch_size = 512
+    PaddedCRTRDataset.repetition_factor = 2
+    PaddedCRTRDataset.geom_type = 'bounded'

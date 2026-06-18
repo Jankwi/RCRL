@@ -12,8 +12,7 @@ from tqdm import tqdm
 from src.contrastivelib.datasets import (
     AbstractContrastiveDataset,
     ContrastiveDatasetNoSpecial,
-    ContrastiveDatasetSingleSpecial,
-    ContrastiveDatasetSpecialPadding,
+    PaddedCRTRDataset,
     PositiveNegativeDataset,
 )
 from src.contrastivelib.metrics.losses import (
