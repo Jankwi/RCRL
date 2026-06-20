@@ -31,11 +31,24 @@ class MetricAccumulator:
 @gin.configurable
 class AbstractContrastiveLoss(ABC):
     def __init__(
-        self, embed_dim: int, sim_fn: SimilarityMeasure, device: torch.device, tau: float = None
+        self,
+        embed_dim: int,
+        sim_fn: SimilarityMeasure,
+        device: torch.device,
+        tau: float = None,
+        default_normalized_tau: float = 0.07,
     ) -> None:
-        self.tau = tau if tau is not None else 1 / math.sqrt(embed_dim)
         self.sim_fn = sim_fn
         self.device = device
+        self._set_temperature(tau, embed_dim, default_normalized_tau)
+
+    def _set_temperature(self, tau: float, embed_dim: int, default_normalized_tau: float) -> None:
+        if tau is not None:
+            self.tau = tau
+        elif self.sim_fn.normalize:
+            self.tau = default_normalized_tau
+        else:
+            self.tau = math.sqrt(embed_dim)
 
     def cross_dist_logits(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return self.sim_fn(a, b, 'cross') / self.tau

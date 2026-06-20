@@ -12,6 +12,7 @@ from src.envs.maze.colorful import VectorizedColorfulMaze
 from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.jobs import AbstractJob
+from src.jobs.utils import switch_path
 from src.jobs.utils.dummy import DummySpecialStateManager
 
 
@@ -41,6 +42,7 @@ class SolvedRateJob(AbstractJob):
         force_store_on_cpu: bool = False,
         gin_config: Dict[str, str] = None,
     ) -> None:
+        file_sets_path = switch_path(file_sets_path)
         self.device = (
             device
             if device is not None

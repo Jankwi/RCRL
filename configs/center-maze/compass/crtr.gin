@@ -1,0 +1,8 @@
+include 'configs/center-maze/compass/common.gin'
+
+run.name = 'CRTR center maze with special state'
+TrainJob.loss_class = @BaselineContrastiveLoss
+TrainJob.dataset_class = @PaddedCRTRDataset
+    PaddedCRTRDataset.batch_size = 512
+    PaddedCRTRDataset.repetition_factor = 2
+    PaddedCRTRDataset.geom_type = 'bounded'

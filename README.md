@@ -18,6 +18,16 @@ export wandb_entity=your-wandb-entity
 export wandb_project=your-wandb-project
 ```
 
+### Dataset path switching
+Dataset paths in configs use `data/` as a relative prefix. When running locally, place
+datasets under `data/` in the repo root. On the server (where datasets live at a fixed
+absolute location), set the following before dispatching jobs:
+```bash
+export RCRL_DATA_PATH_SWITCH=/absolute/path/to/your/datasets
+```
+Any `data/<name>` path in a config will be resolved to `$RCRL_DATA_PATH_SWITCH/<name>`
+at runtime.
+
 ### Runner
 Then, you can simply launch the runner with the desired config, by calling:
 ```bash

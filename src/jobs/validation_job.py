@@ -20,6 +20,7 @@ from src.envs.validation import (
     count_valid_transitions,
 )
 from src.envs.visual import get_trajectory_gifs
+from src.jobs.utils import switch_path
 from src.jobs.utils.anomalies import AnomalyManager
 from src.jobs.utils.dummy import DummySpecialStateManager
 
@@ -42,6 +43,7 @@ class ValidationJob:
         pass_dummy_spec_mgr: bool = False,
         gin_config: Dict[str, str] = None,
     ) -> None:
+        dataset_path = switch_path(dataset_path)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.dataset = dataset_cls(
             file_sets_path=dataset_path, chunk_size=chunk_size, device=self.device

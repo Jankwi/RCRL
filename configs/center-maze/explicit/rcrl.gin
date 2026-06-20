@@ -1,0 +1,12 @@
+include 'configs/center-maze/explicit/common.gin'
+
+run.name = 'relative crl on explicit center maze'
+MetricsJob.checkpoint_dir = 'checkpoints/center-maze/explicit/rcrl'
+TrainJob.loss_class = @ElementwiseRelativeLoss
+TrainJob.dataset_class = @RelativeContrastiveDataset
+    RelativeContrastiveDataset.batch_size = 512
+    RelativeContrastiveDataset.aug_class = @RandomDirectionMazeAugmentation
+    RelativeContrastiveDataset.gamma = 0.9
+    RelativeContrastiveDataset.negs_per_pos = 3
+    RelativeContrastiveDataset.max_prev = 1
+    RelativeContrastiveDataset.geom_type = 'clamped'

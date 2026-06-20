@@ -1,6 +1,6 @@
 run.seed = 67
 run.job_class = @ValidationJob
-    ValidationJob.dataset_path = 'data/takuzu-sample'
+    ValidationJob.dataset_path = 'data/takuzu-algo-order'
     ValidationJob.n_unsolved_renders = 5
     ValidationJob.chunk_size = 128
     ValidationJob.env_cls = @VectorizedTakuzu

@@ -1,7 +1,7 @@
 run.seed = 71
 run.family = 'compass'
 run.job_class = @TrainJob
-    TrainJob.embed_dim = 64
+    TrainJob.embed_dim = 128
     TrainJob.metric_name = 'L22'
     TrainJob.normalize = False
     TrainJob.dataset_dir = 'data/takuzu-algo-order'

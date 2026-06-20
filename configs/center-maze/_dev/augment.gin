@@ -1,0 +1,12 @@
+run.seed = 67
+run.name = 'center-maze augment preview'
+run.family = 'augment-preview'
+run.job_class = @AugmentPreviewJob
+    AugmentPreviewJob.dataset_path = 'data/center-maze-13/valid'
+    AugmentPreviewJob.n_renders = 5
+    AugmentPreviewJob.save_dir = '/augment-preview/'
+    AugmentPreviewJob.aug = @RandomDirectionMazeAugmentation()
+    AugmentPreviewJob.env_class = @VectorizedCenterMaze
+        VectorizedCenterMaze.grid_dim = 13
+        VectorizedCenterMaze.spec_mgr = None
+    AugmentPreviewJob.max_temporal_dist = 3

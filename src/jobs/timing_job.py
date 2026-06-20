@@ -18,6 +18,7 @@ from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.jobs import AbstractJob
 from src.jobs.solved_rate_job import SolvedRateJob
+from src.jobs.utils import switch_path
 
 
 @gin.configurable
@@ -42,6 +43,7 @@ class TimingJob(AbstractJob):
         repeats: int = 5,
         gin_config: Dict[str, str] = None,
     ) -> None:
+        dataset_path = switch_path(dataset_path)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         sim_fn = get_similarity_measure(measure=metric_name, normalize=normalize)

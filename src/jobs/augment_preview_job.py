@@ -10,8 +10,10 @@ from src.contrastivelib.utils.distributions import DistributionSampler
 from src.contrastivelib.utils.special import SpecialStateManager
 from src.envs import VectorizedEnvironment
 from src.envs.augment import AbstractAugmentation
+from src.envs.maze.augment import RandomDirectionMazeAugmentation  # noqa: F401
 from src.envs.takuzu import augment as _takuzu_augments  # noqa: F401  registers gin augments
 from src.jobs import AbstractJob
+from src.jobs.utils import switch_path
 
 
 class _AugmentPreviewDataset(AbstractContrastiveDataset):
@@ -25,6 +27,7 @@ class _AugmentPreviewDataset(AbstractContrastiveDataset):
         chunk_size: int,
         aug: AbstractAugmentation,
         gamma: float = 0.9,
+        max_temporal_dist: int = None,
     ) -> None:
         super().__init__(
             file_sets_path=file_sets_path,
@@ -34,6 +37,7 @@ class _AugmentPreviewDataset(AbstractContrastiveDataset):
         )
         self.aug = aug
         self.sampler = DistributionSampler(device=device, gamma=gamma)
+        self.max_temporal_dist = max_temporal_dist
 
     def contrastive_pick(
         self, trajectories: torch.Tensor, lengths: torch.Tensor
@@ -41,12 +45,17 @@ class _AugmentPreviewDataset(AbstractContrastiveDataset):
         lengths = lengths.to(torch.long)
         batch_idx = torch.arange(len(trajectories), device=self.device)
 
+        # bounded_uniform(lengths - 1) samples from [0, lengths-2], never the terminal state
         t_pivot = self.sampler.bounded_uniform(lengths - 1)
+        remaining = lengths - 1 - t_pivot
+        if self.max_temporal_dist is not None:
+            remaining = remaining.clamp(max=self.max_temporal_dist)
+
         if self.aug.default_temporal_dist is None:
-            temporal_dist = self.sampler.bounded_geometric(lengths - 1 - t_pivot)
+            temporal_dist = self.sampler.bounded_geometric(remaining)
         else:
             temporal_dist = torch.full_like(t_pivot, self.aug.default_temporal_dist)
-            temporal_dist = torch.minimum(temporal_dist, lengths - 1 - t_pivot)
+            temporal_dist = torch.minimum(temporal_dist, remaining)
 
         state = trajectories[batch_idx, t_pivot]
         full = trajectories[batch_idx, lengths - 1]
@@ -89,9 +98,11 @@ class AugmentPreviewJob(AbstractJob):
         n_renders: int,
         save_dir: str = '/augment-previews',
         gamma: float = 0.9,
+        max_temporal_dist: int = None,
         spec_mgr_param: Dict[str, SpecialStateManager] = {},
         gin_config: Dict[str, str] = None,
     ) -> None:
+        dataset_path = switch_path(dataset_path)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.n_renders = n_renders
         self.save_dir = dataset_path + save_dir
@@ -104,6 +115,7 @@ class AugmentPreviewJob(AbstractJob):
             chunk_size=n_renders,
             aug=aug,
             gamma=gamma,
+            max_temporal_dist=max_temporal_dist,
         )
 
         print('-----Initalized AugmentPreviewJob------')

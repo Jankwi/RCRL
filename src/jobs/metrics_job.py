@@ -28,6 +28,7 @@ from src.envs.takuzu.explicit import ExplicitGoalTakuzu
 from src.envs.visual import get_embed_plots
 from src.jobs.solved_rate_job import SolvedRateJob
 from src.jobs.traj_vis_job import TrajectoryVisualizationJob
+from src.jobs.utils import switch_path
 from src.jobs.utils.logging import (
     AbstractLogger,
     BestValOsLogger,
@@ -79,6 +80,7 @@ class MetricsJob:
         multi_env_aggregation_type: str = None,
         multi_env_aggregation_name: str = None,
     ) -> None:
+        validset_path = switch_path(validset_path)
         self.checkpoint_dir = checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.logger = logger_class(epochs=epochs, run_params=gin_config)

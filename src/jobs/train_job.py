@@ -29,6 +29,7 @@ from src.contrastivelib.networks import BroNet, ConvNet, Embedding2D, LNConvNet,
 from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
 from src.jobs import AbstractJob
 from src.jobs.metrics_job import MetricsJob
+from src.jobs.utils import switch_path
 
 _TRAIN_STR, _VALID_STR = 'train', 'valid'
 
@@ -61,6 +62,8 @@ class TrainJob(AbstractJob):
         append_loss_metrics: bool = True,
         cat_train_input: bool = True,
     ) -> None:
+        trainset_path = switch_path(trainset_path)
+        dataset_dir = switch_path(dataset_dir)
         if not ((trainset_path is None) ^ (dataset_dir is None)):
             raise ValueError(f'Exactly one of {trainset_path=} and {dataset_dir=} has to be set')
         if not ((epochs is None) ^ (update_steps is None)):
