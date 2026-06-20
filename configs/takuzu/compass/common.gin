@@ -1,5 +1,5 @@
 run.seed = 71
-run.family = 'compass'
+run.family = 'compass-takuzu'
 run.job_class = @TrainJob
     TrainJob.embed_dim = 128
     TrainJob.metric_name = 'L22'

@@ -1,7 +1,7 @@
 include 'configs/takuzu/explicit/network.gin'
 
 run.seed = 67
-run.family = 'takuzu-mean-check'
+run.family = 'mean-check-takuzu'
 run.job_class = @MeanCompassCheckJob
     MeanCompassCheckJob.embed_dim = 128
     MeanCompassCheckJob.dataset_dir = 'data/takuzu-algo-order'

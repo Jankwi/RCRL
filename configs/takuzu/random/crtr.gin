@@ -1,6 +1,6 @@
 include 'configs/takuzu/random/common.gin'
 
-run.name = 'crtr on random trajs'
+run.name = 'CRTR'
 MetricsJob.checkpoint_dir = 'checkpoints/random/crtr'
 TrainJob.loss_class = @BaselineContrastiveLoss
 TrainJob.dataset_class = @ContrastiveDatasetNoSpecial

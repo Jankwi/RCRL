@@ -52,7 +52,8 @@ class RelativeContrastiveDataset(DatasetWithPadding):
         lengths = lengths.to(torch.long)
 
         if self.pad_special is False:
-            # When not using special states, the realtive dataset won't work with 2 frame trajectories
+            # When not using special states,
+            # the realtive dataset won't work with 2 frame trajectories
             correct_len_mask = lengths > 2
             trajectories = trajectories[correct_len_mask]
             lengths = lengths[correct_len_mask]

@@ -1,6 +1,6 @@
 include 'configs/center-maze/compass/common.gin'
 
-run.name = 'CRTR center maze with special state'
+run.name = 'CRTR'
 TrainJob.loss_class = @BaselineContrastiveLoss
 TrainJob.dataset_class = @PaddedCRTRDataset
     PaddedCRTRDataset.batch_size = 512

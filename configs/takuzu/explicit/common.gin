@@ -1,7 +1,7 @@
 include 'configs/takuzu/explicit/network.gin'
 
 run.seed = 67
-run.family = 'explicit'
+run.family = 'explicit-takuzu'
 run.job_class = @TrainJob
     TrainJob.embed_dim = 128
     TrainJob.dataset_dir = 'data/takuzu-algo-order'

@@ -1,6 +1,6 @@
 include 'configs/center-maze/explicit/common.gin'
 
-run.name = 'relative crl on explicit center maze'
+run.name = 'RCRL'
 MetricsJob.checkpoint_dir = 'checkpoints/center-maze/explicit/rcrl'
 TrainJob.loss_class = @ElementwiseRelativeLoss
 TrainJob.dataset_class = @RelativeContrastiveDataset

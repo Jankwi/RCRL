@@ -1,6 +1,6 @@
 include 'configs/takuzu/explicit/common.gin'
 
-run.name = 'relative crl on explicit trajs'
+run.name = 'RCRL'
 TrainJob.metric_name = 'L22'
 TrainJob.normalize = False
 MetricsJob.checkpoint_dir = 'checkpoints/explicit/rcrl'

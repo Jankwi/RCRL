@@ -1,6 +1,6 @@
 include 'configs/center-maze/explicit/common.gin'
 
-run.name = 'crtr on explicit center maze'
+run.name = 'CRTR'
 MetricsJob.checkpoint_dir = 'checkpoints/explicit/crtr'
 TrainJob.loss_class = @BaselineContrastiveLoss
 TrainJob.dataset_class = @ContrastiveDatasetNoSpecial

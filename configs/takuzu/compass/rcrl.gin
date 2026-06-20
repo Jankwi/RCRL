@@ -1,6 +1,6 @@
 include 'configs/takuzu/compass/common.gin'
 
-run.name = 'rcl to abstract compass vector on Takuzu'
+run.name = 'RCRL'
 MetricsJob.checkpoint_dir = 'checkpoints/compass/rcrl'
 TrainJob.loss_class = @ElementwiseRelativeLoss
 TrainJob.dataset_class = @RelativeContrastiveDataset

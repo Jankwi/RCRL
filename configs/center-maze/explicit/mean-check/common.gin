@@ -1,7 +1,7 @@
 include 'configs/center-maze/explicit/network.gin'
 
 run.seed = 67
-run.family = 'center-maze-mean-check'
+run.family = 'mean-check-center-maze'
 run.job_class = @MeanCompassCheckJob
     MeanCompassCheckJob.embed_dim = 64
     MeanCompassCheckJob.metric_name = 'L22'
