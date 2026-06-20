@@ -1,0 +1,22 @@
+include 'configs/center-maze/explicit/network.gin'
+
+run.seed = 67
+run.family = 'center-maze-mean-check'
+run.job_class = @MeanCompassCheckJob
+    MeanCompassCheckJob.embed_dim = 64
+    MeanCompassCheckJob.metric_name = 'L22'
+    MeanCompassCheckJob.normalize = False
+    MeanCompassCheckJob.dataset_dir = 'data/center-maze-13'
+    MeanCompassCheckJob.n_answers = 256
+    MeanCompassCheckJob.base_model_class = @LNConvNet
+    MeanCompassCheckJob.spec_mgr_class = @SpecialStateManager
+        SpecialStateManager.val = -1
+        SpecialStateManager.shape = (13, 13)
+    MeanCompassCheckJob.dataset_class = @ContrastiveDatasetNoSpecial
+        ContrastiveDatasetNoSpecial.batch_size = 1024
+    MeanCompassCheckJob.env_class = @VectorizedCenterMaze
+        MeanCompassCheckJob.envs_common = {'grid_dim': 13}
+    MeanCompassCheckJob.ve_class = @SingleGoalValueEstimator
+    MeanCompassCheckJob.solved_rate_job_class = @SolvedRateJob
+        SolvedRateJob.n_boards = 2048
+        SolvedRateJob.frames_back = None

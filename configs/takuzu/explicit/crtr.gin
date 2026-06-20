@@ -1,6 +1,8 @@
 include 'configs/takuzu/explicit/common.gin'
 
 run.name = 'crtr on explicit trajs'
+TrainJob.metric_name = 'dot'
+TrainJob.normalize = True
 MetricsJob.checkpoint_dir = 'checkpoints/explicit/crtr'
 TrainJob.loss_class = @BaselineContrastiveLoss
 TrainJob.dataset_class = @ContrastiveDatasetNoSpecial

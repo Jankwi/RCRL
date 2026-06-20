@@ -3,6 +3,7 @@ from typing import Dict, Type
 
 import gin
 
+from jobs.mean_check_job import *  # noqa: F403
 from src.common import fix_seed
 from src.jobs import AbstractJob
 from src.jobs.augment_preview_job import *  # noqa: F403

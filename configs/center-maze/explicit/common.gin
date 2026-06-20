@@ -1,3 +1,5 @@
+include 'configs/center-maze/explicit/network.gin'
+
 run.seed = 71
 run.family = 'explicit-center-maze'
 run.job_class = @TrainJob
@@ -8,10 +10,6 @@ run.job_class = @TrainJob
     TrainJob.epochs = 200
     TrainJob.lr = 3e-4
     TrainJob.base_model_class = @LNConvNet
-        LNConvNet.input_network_class = @Embedding2D
-            Embedding2D.n_states = 4
-        LNConvNet.hidden_size = 64
-        LNConvNet.block_depth = 8
     TrainJob.metrics_job_class = @MetricsJob
         MetricsJob.logger_class = @MultipleLoggers
             MultipleLoggers.default_log_freq = 10

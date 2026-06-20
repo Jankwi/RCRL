@@ -1,0 +1,21 @@
+include 'configs/takuzu/explicit/network.gin'
+
+run.seed = 67
+run.family = 'takuzu-mean-check'
+run.job_class = @MeanCompassCheckJob
+    MeanCompassCheckJob.embed_dim = 128
+    MeanCompassCheckJob.dataset_dir = 'data/takuzu-algo-order'
+    MeanCompassCheckJob.n_answers = 256
+    MeanCompassCheckJob.base_model_class = @LNConvNet
+    MeanCompassCheckJob.spec_mgr_class = @SpecialStateManager
+        SpecialStateManager.val = 255
+        SpecialStateManager.shape = (8, 8)
+        SpecialStateManager.dt_string = 'uint8'
+    MeanCompassCheckJob.dataset_class = @ContrastiveDatasetNoSpecial
+        ContrastiveDatasetNoSpecial.batch_size = 1024
+    MeanCompassCheckJob.env_class = @VectorizedTakuzu
+        MeanCompassCheckJob.envs_common = {'n': 8}
+    MeanCompassCheckJob.ve_class = @SingleGoalValueEstimator
+    MeanCompassCheckJob.solved_rate_job_class = @SolvedRateJob
+        SolvedRateJob.n_boards = 100
+        SolvedRateJob.frames_back = [1, 2, 4, 8, 12, 15, 20, 30, 40]

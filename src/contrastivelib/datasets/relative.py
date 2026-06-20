@@ -56,7 +56,9 @@ class RelativeContrastiveDataset(DatasetWithPadding):
             correct_len_mask = lengths > 2
             trajectories = trajectories[correct_len_mask]
             lengths = lengths[correct_len_mask]
-            assert correct_len_mask.sum() > 0, "No trajectories of length > 2, can't sample relative contrastive pairs."
+            assert correct_len_mask.sum() > 0, (
+                "No trajectories of length > 2, can't sample relative contrastive pairs."
+            )
 
         batch_idx = torch.arange(trajectories.shape[0], device=self.device)
 

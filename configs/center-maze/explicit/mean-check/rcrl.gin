@@ -1,0 +1,4 @@
+include 'configs/center-maze/explicit/mean-check/common.gin'
+
+run.name = 'rcrl mean-check'
+MeanCompassCheckJob.base_checkpoint_path = 'checkpoints/best-explicit/center-maze/rcrl.pt'

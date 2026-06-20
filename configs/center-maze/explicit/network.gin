@@ -1,0 +1,4 @@
+LNConvNet.input_network_class = @Embedding2D
+    Embedding2D.n_states = 4
+LNConvNet.hidden_size = 64
+LNConvNet.block_depth = 8
