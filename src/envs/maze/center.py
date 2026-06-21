@@ -10,6 +10,8 @@ class VectorizedCenterMaze(MaxOneTargetMaze):
     A maze env in which the goal is to reach the center (in the graph theory sense)
     of the maze. Works with mazes both containing and not containing target markers.
     """
+    def env_string(self) -> str:
+        return 'maze_compass'
 
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
         return self.spec_mgr.create_many(len(states))

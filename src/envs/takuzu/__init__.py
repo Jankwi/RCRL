@@ -160,5 +160,8 @@ class VectorizedTakuzu(AbstractVectorizedTakuzu):
             yellow_marker=yellow_marker,
         )
 
+    def env_string(self) -> str:
+            return 'takuzu_compass'
+
     def generate_goals(self, states: torch.Tensor) -> torch.Tensor:
         return self.spec_mgr.create_many(states.shape[0])

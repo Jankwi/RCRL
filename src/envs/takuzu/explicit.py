@@ -12,7 +12,7 @@ class ExplicitGoalTakuzu(AbstractVectorizedTakuzu):
     """
 
     def env_string(self) -> str:
-        return 'explicit_goal_takuzu'
+        return 'takuzu_explicit'
 
     def requires_answers_for_goal_generation(self) -> bool:
         return True
