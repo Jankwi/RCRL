@@ -1,0 +1,11 @@
+include 'configs/takuzu/explicit/common.gin'
+
+run.name = 'CRTR (mixed trajectories)'
+TrainJob.metric_name = 'dot'
+TrainJob.normalize = True
+TrainJob.dataset_dir = 'data/takuzu-algotobad'
+MetricsJob.checkpoint_dir = 'checkpoints/explicit/crtr-mixed'
+TrainJob.loss_class = @BaselineContrastiveLoss
+TrainJob.dataset_class = @MixedDataset
+    MixedDataset.batch_size = 512
+    MixedDataset.geom_type = 'clamped'

@@ -12,6 +12,7 @@ from tqdm import tqdm
 from src.contrastivelib.datasets import (
     AbstractContrastiveDataset,
     ContrastiveDatasetNoSpecial,
+    MixedDataset,
     PaddedCRTRDataset,
     PositiveNegativeDataset,
 )

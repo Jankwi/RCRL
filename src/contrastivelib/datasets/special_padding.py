@@ -31,19 +31,26 @@ class DatasetWithPadding(AbstractContrastiveDataset):
         self.pad_special = pad_special
 
     def _pad_special(
-        self, trajectories: torch.Tensor, lengths: torch.Tensor
+        self,
+        trajectories: torch.Tensor,
+        lengths: torch.Tensor,
+        which_solved: torch.Tensor = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Appends one special state per trajectory when pad_special is True.
 
-        Returns (trajectories, sample_lengths) where sample_lengths = lengths + 1 if padded.
+        The special token is written at index `lengths` and the length bumped by one, but only for
+        rows flagged in `which_solved` (default: all rows). Unflagged rows still get the appended
+        column (so the time axis stays uniform) but keep their length, so they never index it.
         """
         if not self.pad_special:
             return trajectories, lengths
+        if which_solved is None:
+            which_solved = torch.ones(len(trajectories), dtype=torch.bool, device=self.device)
         batch_idx = torch.arange(len(trajectories), device=self.device)
         spec_states = self.spec_mgr.create_many(len(trajectories)).to(trajectories.dtype)
         trajectories = torch.cat((trajectories, spec_states.unsqueeze(1)), dim=1)
-        trajectories[batch_idx, lengths] = spec_states
-        return trajectories, lengths + 1
+        trajectories[batch_idx[which_solved], lengths[which_solved]] = spec_states[which_solved]
+        return trajectories, lengths + which_solved.to(lengths.dtype)
 
     @abstractmethod
     def contrastive_pick(

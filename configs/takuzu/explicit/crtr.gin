@@ -4,6 +4,7 @@ run.name = 'CRTR'
 TrainJob.metric_name = 'dot'
 TrainJob.normalize = True
 MetricsJob.checkpoint_dir = 'checkpoints/explicit/crtr'
+TrainJob.dataset_dir = 'data/takuzu-algo-order'
 TrainJob.loss_class = @BaselineContrastiveLoss
 TrainJob.dataset_class = @ContrastiveDatasetNoSpecial
     ContrastiveDatasetNoSpecial.batch_size = 512

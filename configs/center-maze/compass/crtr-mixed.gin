@@ -1,0 +1,9 @@
+include 'configs/center-maze/compass/common.gin'
+
+run.name = 'CRTR (mixed trajectories)'
+MetricsJob.checkpoint_dir = 'checkpoints/compass/center-maze-crtr-mixed'
+TrainJob.loss_class = @BaselineContrastiveLoss
+TrainJob.dataset_class = @MixedDataset
+    MixedDataset.batch_size = 512
+    MixedDataset.geom_type = 'bounded'
+    MixedDataset.different_lengths = True

@@ -9,6 +9,7 @@ class ExplicitGoalMaze(MaxOneTargetMaze):
     """
     A maze env in which the goal is the provided terminal state.
     """
+
     def env_string(self) -> str:
         return 'maze_explicit'
 
