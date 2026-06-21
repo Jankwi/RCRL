@@ -1,6 +1,8 @@
 include 'configs/center-maze/compass/common.gin'
 
 run.name = 'CRTR (mixed trajectories)'
+TrainJob.metric_name = 'L1'
+TrainJob.normalize = False
 MetricsJob.checkpoint_dir = 'checkpoints/compass/center-maze-crtr-mixed'
 TrainJob.loss_class = @BaselineContrastiveLoss
 TrainJob.dataset_class = @MixedDataset

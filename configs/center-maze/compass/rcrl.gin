@@ -1,6 +1,8 @@
 include 'configs/center-maze/compass/common.gin'
 
 run.name = 'RCRL'
+TrainJob.metric_name = 'L22'
+TrainJob.normalize = False
 MetricsJob.checkpoint_dir = 'checkpoints/center-maze/compass/rcrl'
 TrainJob.loss_class = @ElementwiseRelativeLoss
 TrainJob.dataset_class = @RelativeContrastiveDataset

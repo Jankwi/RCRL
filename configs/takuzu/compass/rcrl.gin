@@ -1,6 +1,8 @@
 include 'configs/takuzu/compass/common.gin'
 
 run.name = 'RCRL'
+TrainJob.metric_name = 'dot'
+TrainJob.normalize = True
 MetricsJob.checkpoint_dir = 'checkpoints/compass/rcrl'
 TrainJob.loss_class = @ElementwiseRelativeLoss
 TrainJob.dataset_class = @RelativeContrastiveDataset

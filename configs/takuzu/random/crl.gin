@@ -1,9 +1,0 @@
-include 'configs/takuzu/random/common.gin'
-
-run.name = 'CRL'
-MetricsJob.checkpoint_dir = 'checkpoints/random/crl'
-TrainJob.loss_class = @BaselineContrastiveLoss
-TrainJob.dataset_class = @ContrastiveDatasetNoSpecial
-    ContrastiveDatasetNoSpecial.batch_size = 512
-    ContrastiveDatasetNoSpecial.repetition_factor = 1
-    ContrastiveDatasetNoSpecial.geom_type = 'clamped'

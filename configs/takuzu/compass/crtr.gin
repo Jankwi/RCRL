@@ -1,6 +1,8 @@
 include 'configs/takuzu/compass/common.gin'
 
 run.name = 'CRTR'
+TrainJob.metric_name = 'L2'
+TrainJob.normalize = False
 MetricsJob.checkpoint_dir = 'checkpoints/compass/crtr'
 TrainJob.loss_class = @BaselineContrastiveLoss
 TrainJob.dataset_class = @PaddedCRTRDataset

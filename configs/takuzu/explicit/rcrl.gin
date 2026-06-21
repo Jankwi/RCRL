@@ -1,8 +1,8 @@
 include 'configs/takuzu/explicit/common.gin'
 
 run.name = 'RCRL'
-TrainJob.metric_name = 'L22'
-TrainJob.normalize = False
+TrainJob.metric_name = 'dot'
+TrainJob.normalize = True
 MetricsJob.checkpoint_dir = 'checkpoints/explicit/rcrl'
 TrainJob.loss_class = @ElementwiseRelativeLoss
 TrainJob.dataset_dir = 'data/takuzu-algo-order'
