@@ -1,5 +1,6 @@
 # ruff: noqa: F401
 import math
+import os
 from typing import Dict, Type
 
 import gin
@@ -62,9 +63,12 @@ class TrainJob(AbstractJob):
         update_steps: int = None,
         append_loss_metrics: bool = True,
         cat_train_input: bool = True,
+        starting_epoch: int = 0,
+        starting_checkpoint: str = None,
     ) -> None:
         trainset_path = switch_path(trainset_path)
         dataset_dir = switch_path(dataset_dir)
+        starting_checkpoint = starting_checkpoint
         if not ((trainset_path is None) ^ (dataset_dir is None)):
             raise ValueError(f'Exactly one of {trainset_path=} and {dataset_dir=} has to be set')
         if not ((epochs is None) ^ (update_steps is None)):
@@ -83,6 +87,8 @@ class TrainJob(AbstractJob):
         ).to(self.device)
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        if starting_checkpoint is not None:
+            self._load_checkpoint(starting_checkpoint)
         self.loss_fn = loss_class(embed_dim=embed_dim, sim_fn=sim_fn, device=self.device)
         self.cat_train_input = cat_train_input
 
@@ -102,9 +108,16 @@ class TrainJob(AbstractJob):
             else math.ceil(update_steps / self.trainset.get_batches_per_epoch())
         )
 
+        if not (0 <= starting_epoch < self.epochs):
+            raise ValueError(
+                f'{starting_epoch=} must be in [0, {self.epochs=}) (the resolved epoch count)'
+            )
+        self.starting_epoch = starting_epoch
+
         self.append_loss_metrics = append_loss_metrics
         self.metrics_job = metrics_job_class(
-            epochs=epochs,
+            epochs=self.epochs,
+            starting_epoch=self.starting_epoch,
             device=self.device,
             model=self.model,
             optimizer=self.optimizer,
@@ -116,6 +129,14 @@ class TrainJob(AbstractJob):
             spec_mgr_param=spec_mgr_param,
             **self.validset_path_param,
         )
+
+    def _load_checkpoint(self, ckpt_dir: str) -> None:
+        """Restores model (and optimizer, if present) state from a checkpoint directory."""
+        model_path = os.path.join(ckpt_dir, 'model.pt')
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        optim_path = os.path.join(ckpt_dir, 'optimizer.pt')
+        if os.path.exists(optim_path):
+            self.optimizer.load_state_dict(torch.load(optim_path, map_location=self.device))
 
     def _train_forward(self, input: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Forwards the input through the model, applying special token handling if configured."""
@@ -134,7 +155,7 @@ class TrainJob(AbstractJob):
             torch.cuda.empty_cache()
         self.model.train()
 
-        for epoch in tqdm(range(self.epochs)):
+        for epoch in tqdm(range(self.starting_epoch, self.epochs)):
             train_acc = MetricAccumulator()
 
             for states, extras in self.trainset:

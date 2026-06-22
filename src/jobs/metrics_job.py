@@ -65,6 +65,7 @@ class MetricsJob:
         solved_rate_job_class: Type[SolvedRateJob] = SolvedRateJob,
         traj_vis_job_class: Type[TrajectoryVisualizationJob] = TrajectoryVisualizationJob,
         gin_config: Dict[str, str] = None,
+        starting_epoch: int = 0,
         checkpoint_dir: str = 'checkpoints',
         checkpoint_models: str = 'dont',  # one of 'dont', 'local', 'log'
         n_gifs: int = 0,
@@ -83,7 +84,9 @@ class MetricsJob:
         validset_path = switch_path(validset_path)
         self.checkpoint_dir = checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
-        self.logger = logger_class(epochs=epochs, run_params=gin_config)
+        self.logger = logger_class(
+            epochs=epochs, starting_epoch=starting_epoch, run_params=gin_config
+        )
 
         self.model, self.optimizer = model, optimizer
         self.device = device
