@@ -1,7 +1,6 @@
 include 'configs/takuzu/explicit/mean-check/common.gin'
 
-run.name = 'RCRL mean-check'
+run.name = 'RCRL'
+MeanCompassCheckJob.metric_name = 'dot'
+MeanCompassCheckJob.normalize = True
 MeanCompassCheckJob.base_checkpoint_path = 'checkpoints/best-explicit/takuzu/rcrl.pt'
-
-MeanCompassCheckJob.metric_name = 'L22'
-MeanCompassCheckJob.normalize = False

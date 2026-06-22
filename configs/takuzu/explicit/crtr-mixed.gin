@@ -1,8 +1,8 @@
 include 'configs/takuzu/explicit/common.gin'
 
 run.name = 'CRTR (mixed trajectories)'
-TrainJob.metric_name = 'dot'
-TrainJob.normalize = True
+TrainJob.metric_name = 'L22'
+TrainJob.normalize = False
 TrainJob.dataset_dir = 'data/takuzu-algotobad'
 MetricsJob.checkpoint_dir = 'checkpoints/explicit/crtr-mixed'
 TrainJob.loss_class = @BaselineContrastiveLoss
