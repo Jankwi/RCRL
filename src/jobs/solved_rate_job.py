@@ -40,6 +40,7 @@ class SolvedRateJob(AbstractJob):
         ve: ValueEstimator = None,
         print_stats: bool = True,
         force_store_on_cpu: bool = False,
+        prune: bool = None,
         gin_config: Dict[str, str] = None,
     ) -> None:
         file_sets_path = switch_path(file_sets_path)
@@ -63,7 +64,8 @@ class SolvedRateJob(AbstractJob):
         )
 
         self.print_stats = print_stats
-        self.needs_answers = self.env.requires_answers()
+        # Prune doomed rollouts wherever the env supports it, unless explicitly overridden.
+        self.prune = self.env.supports_pruning() if prune is None else prune
 
         self.n_boards = n_boards
         with dataset.preload_file_set():
@@ -73,50 +75,46 @@ class SolvedRateJob(AbstractJob):
             # i-back score are computed on the same boards (apples-to-apples, monotonic).
             data = dataset.get_random_trajectory_data(k=self.n_boards)
 
+            # Answers (terminal solved states) are always extracted: storage only uses them when
+            # the env requires them, and pruning needs them. 'lengths' is always available.
             self.from_starting = from_starting
             self.starting_answers = None
             if self.from_starting:
-                starting = dataset.get_starting(
+                self.starting, self.starting_answers = dataset.get_starting(
                     data,
                     device=self.store_device,
-                    append_answers=self.needs_answers,
+                    append_answers=True,
                 )
-                if self.needs_answers:
-                    self.starting, self.starting_answers = starting
-                else:
-                    self.starting = starting
 
             self.frames_back = frames_back
             self.starting_frames_answers = None
             if self.frames_back is not None:
                 self.n, self.starting_frames = len(self.frames_back), None
                 for i, fb in enumerate(self.frames_back):
-                    frames = dataset.get_ith_back(
+                    frames, frame_answers = dataset.get_ith_back(
                         data,
                         i=fb,
                         device=self.store_device,
-                        append_answers=self.needs_answers,
+                        append_answers=True,
                         print_stats=self.print_stats,
                     )
-                    if self.needs_answers:
-                        frames, frame_answers = frames
                     if self.starting_frames is None:
                         self.starting_frames = torch.empty(
                             (self.n, *frames.shape), dtype=frames.dtype, device=self.store_device
                         )
-                        if self.needs_answers:
-                            self.starting_frames_answers = torch.empty(
-                                (self.n, *frame_answers.shape),
-                                dtype=frame_answers.dtype,
-                                device=self.store_device,
-                            )
+                        self.starting_frames_answers = torch.empty(
+                            (self.n, *frame_answers.shape),
+                            dtype=frame_answers.dtype,
+                            device=self.store_device,
+                        )
                     self.starting_frames[i] = frames
-                    if self.needs_answers:
-                        self.starting_frames_answers[i] = frame_answers
+                    self.starting_frames_answers[i] = frame_answers
 
     def solved_rate_scalar(self, states: torch.Tensor, answers: torch.Tensor = None) -> float:
         answers = answers.to(self.device) if answers is not None else None
-        rate_dict = eval_no_search(states.to(self.device), self.env, self.ve, answers=answers)
+        rate_dict = eval_no_search(
+            states.to(self.device), self.env, self.ve, answers=answers, prune=self.prune
+        )
         return rate_dict['solved_rate']
 
     def execute(self) -> Dict[str, float]:

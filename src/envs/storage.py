@@ -70,6 +70,9 @@ class AbstractStateStorage(ABC):
     def active_goals(self) -> torch.Tensor:
         return self.goals[self.active_idx]
 
+    def active_answers(self) -> torch.Tensor:
+        return self.answers[self.active_idx]
+
     def process_chosen_moves(self, chosen_moves: torch.Tensor, still_active: torch.Tensor) -> None:
         self.active_idx = self.active_idx[still_active]
         self.states[self.active_idx] = chosen_moves[still_active]

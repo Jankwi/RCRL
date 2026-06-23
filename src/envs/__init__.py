@@ -86,6 +86,19 @@ class VectorizedEnvironment(ABC):
             or self.requires_answers_for_solved_checking()
         )
 
+    def supports_pruning(self) -> bool:
+        """Whether is_unsolvable() can cut provably-doomed states from eval_no_search early."""
+        return False
+
+    def is_unsolvable(self, states: torch.Tensor, answers: torch.Tensor) -> torch.Tensor:
+        """Returns a bool mask, True where a state can no longer reach its answer.
+
+        Requires answers. Only consulted by eval_no_search (after the value estimator has chosen a
+        move) when prune=True and supports_pruning() is True. Must be sound: never flag a state that
+        could still be completed into its answer.
+        """
+        raise NotImplementedError
+
 
 class ValueEstimator(ABC):
     """Layer of abstraction for estimating the value of positions"""

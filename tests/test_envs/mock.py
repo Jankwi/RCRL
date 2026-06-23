@@ -42,6 +42,21 @@ class MockVectorizedEnvironment(VectorizedEnvironment):
         return None
 
 
+class MockPrunableEnvironment(MockVectorizedEnvironment):
+    """
+    Same as MockVectorizedEnvironment, but supports answer-based pruning.
+
+    Actions only ever add to the position, so once the position is past the answer's position
+    (the goal) it can never come back - the state is unsolvable.
+    """
+
+    def supports_pruning(self) -> bool:
+        return True
+
+    def is_unsolvable(self, states: torch.Tensor, answers: torch.Tensor) -> torch.Tensor:
+        return states[:, 1] > answers[:, 1]
+
+
 class MockValueEstimator(ValueEstimator):
     """
     A mock value estimator:

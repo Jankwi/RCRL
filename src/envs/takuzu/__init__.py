@@ -101,6 +101,15 @@ class AbstractVectorizedTakuzu(VectorizedEnvironment):
 
         return solved
 
+    def supports_pruning(self) -> bool:
+        return True
+
+    def is_unsolvable(self, states: torch.Tensor, answers: torch.Tensor) -> torch.Tensor:
+        """A filled cell disagreeing with the answer can never be undone (cells only go
+        empty -> colored), so the answer is then unreachable."""
+        filled = states != 0
+        return (filled & (states != answers)).any(dim=(1, 2))
+
     def get_state_sets(self, n_sets: int) -> AbstractVectorizedStateSet:
         return AlwaysMissingStateSet()
 

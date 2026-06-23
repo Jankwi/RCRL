@@ -6,9 +6,17 @@ from src.common import fix_seed
 from src.envs.explore import eval_no_search
 from src.envs.storage import DeepStateStorage
 from tests.test_envs.mock import (
+    MockPrunableEnvironment,
     MockValueEstimator,
     MockVectorizedEnvironment,
 )
+
+
+def _answers_for(states: torch.Tensor) -> torch.Tensor:
+    """Terminal/solved state for the mock env: position equals the goal, i.e. (goal, goal)."""
+    answers = states.clone()
+    answers[:, 1] = states[:, 0]
+    return answers
 
 
 def _solvable_states(n: int, max_idx: int, device: torch.device) -> torch.Tensor:
@@ -222,3 +230,78 @@ class TestEvalNoSearchDeep:
 
         assert metrics['solved_rate'] == 0.0
         assert_close(tensors['outcome'], torch.tensor([False], device=device_fx))
+
+
+class TestEvalNoSearchPrune:
+    """Tests for eval_no_search's answer-based pruning."""
+
+    def setup_method(self):
+        self.max_idx = 20
+        self.seed = 42
+        fix_seed(self.seed)
+
+    def test_guard_unsupported_env(self, device_fx):
+        env = MockVectorizedEnvironment(max_idx=self.max_idx, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
+        states = _solvable_states(4, self.max_idx, device_fx)
+        with pytest.raises(AssertionError):
+            eval_no_search(states, env, ve, answers=_answers_for(states), prune=True)
+
+    def test_guard_requires_answers(self, device_fx):
+        env = MockPrunableEnvironment(max_idx=self.max_idx, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
+        states = _solvable_states(4, self.max_idx, device_fx)
+        with pytest.raises(AssertionError):
+            eval_no_search(states, env, ve, prune=True)
+
+    def test_guard_deep_storage(self, device_fx):
+        env = MockPrunableEnvironment(max_idx=self.max_idx, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
+        states = _solvable_states(4, self.max_idx, device_fx)
+        with pytest.raises(AssertionError):
+            eval_no_search(
+                states,
+                env,
+                ve,
+                storage_class=DeepStateStorage,
+                max_len={'max_len': 32},
+                answers=_answers_for(states),
+                prune=True,
+            )
+
+    @pytest.mark.parametrize('num_unsolved, num_solved', [(4, 0), (3, 1), (10, 10), (1, 3), (0, 4)])
+    @pytest.mark.parametrize('prune', [False, True])
+    def test_prune_matches_solved_rate(self, num_unsolved, num_solved, prune, device_fx):
+        """Pruning only drops boards bound to fail, so solved_rate is identical with/without it."""
+        env = MockPrunableEnvironment(max_idx=self.max_idx, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
+
+        total = num_unsolved + num_solved
+        states = torch.cat(
+            [
+                _solvable_states(num_solved, self.max_idx, device_fx),
+                _unsolvable_states(num_unsolved, self.max_idx, device_fx),
+            ],
+            dim=0,
+        )
+
+        result = eval_no_search(states, env, ve, answers=_answers_for(states), prune=prune)
+        assert result['solved_rate'] == pytest.approx(num_solved / total)
+
+    def test_prune_drops_doomed_board(self, device_fx):
+        """goal=5, pos=4: the greedy prefers rem-0 and overshoots to 6, which is then unsolvable."""
+        env = MockPrunableEnvironment(max_idx=self.max_idx, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
+
+        states = torch.tensor([[5, 4]], device=device_fx)
+        result = eval_no_search(states, env, ve, answers=_answers_for(states), prune=True)
+        assert result['solved_rate'] == 0.0
+
+    def test_prune_keeps_solvable_board(self, device_fx):
+        """goal=6, pos=4: the greedy steps +2 straight onto the goal, never overshooting."""
+        env = MockPrunableEnvironment(max_idx=self.max_idx, device=device_fx)
+        ve = MockValueEstimator(device=device_fx)
+
+        states = torch.tensor([[6, 4]], device=device_fx)
+        result = eval_no_search(states, env, ve, answers=_answers_for(states), prune=True)
+        assert result['solved_rate'] == 1.0

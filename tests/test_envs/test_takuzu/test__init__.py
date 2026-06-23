@@ -120,3 +120,33 @@ class TestVectorizedTakuzu:
         env = self._make_env(boards.shape[-1], device_fx)
         is_solved = env.is_solved(boards, None)
         assert_close(is_solved, torch.tensor(expected_solved, device=device_fx))
+
+    def test_supports_pruning(self, device_fx):
+        assert self._make_env(4, device_fx).supports_pruning() is True
+
+    def test_is_unsolvable(self, device_fx):
+        env = self._make_env(4, device_fx)
+        answer = torch.tensor(
+            [
+                [_BLUE, _YELLOW, _BLUE, _YELLOW],
+                [_YELLOW, _BLUE, _BLUE, _YELLOW],
+                [_BLUE, _YELLOW, _YELLOW, _BLUE],
+                [_YELLOW, _BLUE, _YELLOW, _BLUE],
+            ],
+            dtype=torch.uint8,
+            device=device_fx,
+        )
+
+        empty = torch.zeros((4, 4), dtype=torch.uint8, device=device_fx)
+
+        partial_correct = answer.clone()  # filled cells all agree with the answer
+        partial_correct[2:] = 0
+
+        one_wrong = answer.clone()  # a single filled cell contradicts the answer
+        one_wrong[0, 0] = _YELLOW if answer[0, 0] == _BLUE else _BLUE
+
+        boards = torch.stack([empty, partial_correct, one_wrong, answer.clone()])
+        answers = answer.unsqueeze(0).expand(4, 4, 4)
+
+        unsolvable = env.is_unsolvable(boards, answers)
+        assert_close(unsolvable, torch.tensor([False, False, True, False], device=device_fx))
