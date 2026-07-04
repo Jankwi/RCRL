@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch.testing import assert_close
 
-from src.envs.maze.utils import generate_border_positions, get_pos_indices
+from src.envs.maze.utils import get_pos_indices
 
 
 class TestGetPosIndices:
@@ -39,47 +39,3 @@ class TestGetPosIndices:
         expected = torch.tensor(agent_positions, device=device_fx)
         result = get_pos_indices(states, grid_dim, self.pos_marker)
         assert_close(result, expected)
-
-    def test_generate_border_positions(self, device_fx):
-        """Tests the generate_border_positions method on sample board states"""
-        expected = torch.tensor(
-            [
-                [
-                    [0, 0, 1, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                ],
-                [
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                ],
-                [
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                ],
-                [
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 1, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                ],
-                [
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [1, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                ],
-            ],
-            device=device_fx,
-        ).to(torch.bool)
-        assert_close(generate_border_positions(border=3, grid_dim=5, device=device_fx), expected)

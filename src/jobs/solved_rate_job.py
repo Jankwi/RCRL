@@ -8,8 +8,6 @@ import torch
 from src.contrastivelib.datasets import AbstractContrastiveDataset, PassthroughDataset
 from src.envs import ValueEstimator, VectorizedEnvironment
 from src.envs.explore import eval_no_search
-from src.envs.maze.colorful import VectorizedColorfulMaze
-from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.jobs import AbstractJob
 from src.jobs.utils import switch_path

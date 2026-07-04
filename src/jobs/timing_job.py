@@ -10,11 +10,9 @@ from src.contrastivelib.datasets import AbstractContrastiveDataset, PassthroughD
 from src.contrastivelib.metrics.estimation import ManyGoalsValueEstimator, SingleGoalValueEstimator
 from src.contrastivelib.metrics.losses import AbstractContrastiveLoss
 from src.contrastivelib.metrics.sims import get_similarity_measure
-from src.contrastivelib.networks import BroNet, ConvNet, Embedding2D, LNConvNet, LNDenseNet
+from src.contrastivelib.networks import Embedding2D, LNConvNet
 from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
 from src.envs import ValueEstimator, VectorizedEnvironment
-from src.envs.maze.colorful import VectorizedColorfulMaze
-from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.jobs import AbstractJob
 from src.jobs.solved_rate_job import SolvedRateJob

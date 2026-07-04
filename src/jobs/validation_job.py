@@ -10,8 +10,6 @@ from src.contrastivelib.datasets import AbstractContrastiveDataset, PassthroughD
 from src.contrastivelib.datasets.utils import extract_answers
 from src.envs import VectorizedEnvironment
 from src.envs.explore import eval_no_search
-from src.envs.maze.colorful import VectorizedColorfulMaze
-from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.envs.takuzu import VectorizedTakuzu
 from src.envs.validation import (

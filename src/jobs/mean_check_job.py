@@ -11,7 +11,7 @@ from src.contrastivelib.datasets import (
 )
 from src.contrastivelib.metrics.estimation import SingleGoalValueEstimator
 from src.contrastivelib.metrics.sims import get_similarity_measure
-from src.contrastivelib.networks import BroNet, ConvNet, Embedding2D, LNConvNet, LNDenseNet
+from src.contrastivelib.networks import Embedding2D, LNConvNet
 from src.contrastivelib.utils.special import SpecialStateManager, SpecialStateModelWrapper
 from src.envs import ValueEstimator, VectorizedEnvironment
 from src.envs.maze.center import VectorizedCenterMaze

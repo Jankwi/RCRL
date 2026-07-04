@@ -18,9 +18,7 @@ from src.envs import ValueEstimator, VectorizedEnvironment
 from src.envs.explore import eval_no_search
 from src.envs.maze.arbitrary import ArbitraryPositionMaze
 from src.envs.maze.center import VectorizedCenterMaze
-from src.envs.maze.colorful import VectorizedColorfulMaze
 from src.envs.maze.explicit import ExplicitGoalMaze
-from src.envs.maze.quarter import VectorizedQuarterMaze
 from src.envs.maze.target import VectorizedTargetMaze
 from src.envs.takuzu import VectorizedTakuzu
 from src.envs.takuzu.arbitrary import ArbitraryGoalTakuzu

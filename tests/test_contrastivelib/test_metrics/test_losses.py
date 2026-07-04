@@ -5,7 +5,6 @@ from torch.testing import assert_close
 from src.contrastivelib.metrics.losses import (
     BaselineContrastiveLoss,
     ElementwiseRelativeLoss,
-    ElementwiseSupConLoss,
     MetricAccumulator,
 )
 from src.contrastivelib.metrics.sims import L2SimilarityMeasure
@@ -106,45 +105,6 @@ def test_accuracy_is_no_grad(loss_fn, device_fx):
     _, metrics = loss_fn(psi_0, psi_T, append_metrics=True)
     for v in metrics.values():
         assert isinstance(v, float)
-
-
-def _elementwise_loss(device):
-    sim_fn = L2SimilarityMeasure(normalize=False)
-    return ElementwiseSupConLoss(embed_dim=EMBED_DIM, sim_fn=sim_fn, device=device)
-
-
-def _brute_force_elementwise(pos_sims, neg_sims, k):
-    """Naive per-positive -log(exp(pos)/(exp(pos) + sum_j exp(neg_j)))."""
-    n = pos_sims.shape[0]
-    total = pos_sims.new_zeros(())
-    for j in range(n):
-        negs_j = [neg_sims[t * n + j] for t in range(k)]
-        denom = torch.exp(pos_sims[j]) + sum(torch.exp(ng) for ng in negs_j)
-        total += -(pos_sims[j] - torch.log(denom))
-    return total / n
-
-
-@pytest.mark.parametrize('k', [1, 2, 5])
-def test_elementwise_supcon_matches_brute_force(device_fx, k):
-    torch.manual_seed(0)
-    n = 6
-    pos_sims = torch.randn(n, device=device_fx)
-    neg_sims = torch.randn(n * k, device=device_fx)
-
-    loss = _elementwise_loss(device_fx)._calc_loss(pos_sims, neg_sims)
-    expected = _brute_force_elementwise(pos_sims, neg_sims, k)
-    assert_close(loss, expected)
-
-
-def test_elementwise_supcon_k1_matches_legacy_stack(device_fx):
-    torch.manual_seed(1)
-    n = 8
-    pos_sims = torch.randn(n, device=device_fx)
-    neg_sims = torch.randn(n, device=device_fx)
-
-    loss = _elementwise_loss(device_fx)._calc_loss(pos_sims, neg_sims)
-    legacy = -(pos_sims - torch.logsumexp(torch.stack([pos_sims, neg_sims], dim=1), dim=1)).mean()
-    assert_close(loss, legacy)
 
 
 def _relative_loss(device):
