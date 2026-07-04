@@ -9,7 +9,7 @@ from src.envs.validation import (
     count_valid_transitions,
     get_neighbours,
 )
-from tests.test_envs.mock import MockVectorizedEnvironment
+from tests.envs.mock import MockVectorizedEnvironment
 
 
 def _to_trajectories(trajectory_list, device):

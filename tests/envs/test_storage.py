@@ -4,7 +4,7 @@ from torch.testing import assert_close
 
 from src.common import fix_seed
 from src.envs.storage import DeepStateStorage, ShallowStateStorage
-from tests.test_envs.mock import MockVectorizedEnvironment
+from tests.envs.mock import MockVectorizedEnvironment
 
 
 @pytest.fixture(params=[ShallowStateStorage, DeepStateStorage])

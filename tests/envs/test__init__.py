@@ -3,7 +3,7 @@ import torch
 from torch.testing import assert_close
 
 from src.common import fix_seed
-from tests.test_envs.mock import MockVectorizedEnvironment
+from tests.envs.mock import MockVectorizedEnvironment
 
 
 class TestVectorizedEnvironment:

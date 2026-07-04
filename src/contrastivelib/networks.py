@@ -5,14 +5,49 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as f
 
-from src.contrastivelib.networks.bro import BroConvBlock
-from src.contrastivelib.networks.utils import small_init
+
+def small_init(layer: nn.Module, sd: float) -> None:
+    if isinstance(layer, nn.Linear):
+        nn.init.normal_(layer.weight, mean=0, std=sd)
+        nn.init.zeros_(layer.bias)
+
+
+@gin.configurable
+class LNConvBlock(nn.Module):
+    """A single block of LNConvNet (see below)."""
+
+    def __init__(self, channels: int, dropout: float) -> None:
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(channels),
+            nn.ReLU(),
+            nn.Dropout2d(dropout),
+            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(channels),
+            nn.Dropout2d(dropout),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x + self.layers(x)
+
+
+@gin.configurable
+class Embedding2D(nn.Module):
+    def __init__(self, n_states: int, embed_dim: int) -> None:
+        super().__init__()
+        self.embed = nn.Embedding(n_states, embedding_dim=embed_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.embed(x.long()).permute(0, 3, 1, 2)  # [M, embed_dim, grid_dim, grid_dim]
 
 
 @gin.configurable
 class LNConvNet(nn.Module):
     """
-    Convolutional analogue of LNDenseNet.
+    Architecture adapted from the official code for the CRTR paper
+    (https://github.com/Princeton-RL/CRTR/blob/main/networks.py).
+
     Expects input_network_class to produce spatial output (M, hidden_size, H, W).
     """
 
@@ -31,7 +66,7 @@ class LNConvNet(nn.Module):
         self.input_network = input_network_class(embed_dim=hidden_size)
         self.first_bn = nn.BatchNorm2d(hidden_size)
         self.blocks = nn.Sequential(
-            *[BroConvBlock(hidden_size, dropout=dropout) for _ in range(block_depth)]
+            *[LNConvBlock(hidden_size, dropout=dropout) for _ in range(block_depth)]
         )
         self.output_layer = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
