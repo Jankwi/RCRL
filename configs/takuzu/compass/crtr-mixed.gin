@@ -3,7 +3,6 @@ include 'configs/takuzu/compass/common.gin'
 run.name = 'CRTR (mixed trajectories)'
 TrainJob.metric_name = 'L1'
 TrainJob.normalize = False
-TrainJob.dataset_dir = 'data/takuzu-algotobad'
 MetricsJob.checkpoint_dir = 'checkpoints/compass/crtr-mixed'
 TrainJob.loss_class = @BaselineContrastiveLoss
 TrainJob.dataset_class = @MixedDataset

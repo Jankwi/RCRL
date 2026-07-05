@@ -1,6 +1,6 @@
 run.seed = 67
 run.job_class = @ValidationJob
-    ValidationJob.dataset_path = 'data/center-maze-13/valid'
+    ValidationJob.dataset_path = 'data/center-maze/valid'
     ValidationJob.n_unsolved_renders = 5
     ValidationJob.chunk_size = 128
     ValidationJob.env_cls = @ExplicitGoalMaze

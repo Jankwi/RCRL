@@ -115,6 +115,7 @@ class ValidationJob:
 
     def get_traj_stats(self) -> None:
         min_len, max_len = None, None
+        shapes: Dict[str, Dict[Tuple[int, ...], int]] = {}
 
         def update_len_stats(lengths: torch.Tensor) -> None:
             nonlocal min_len, max_len
@@ -122,9 +123,19 @@ class ValidationJob:
             min_len = batch_min if min_len is None else min(min_len, batch_min)
             max_len = batch_max if max_len is None else max(max_len, batch_max)
 
+        def update_tensor_stats(tensors: Dict[str, torch.Tensor]) -> None:
+            update_len_stats(tensors['lengths'])
+
+            nonlocal shapes
+            for key, tensor in tensors.items():
+                if key not in shapes:
+                    shapes[key] = {tensor.shape: 1}
+                else:
+                    shapes[key][tensor.shape] += 1
+
         valid, solved = [], []
         for tensors, _ in self.dataset:
-            update_len_stats(tensors['lengths'])
+            update_tensor_stats(tensors)
             valid.append(count_valid_transitions(**tensors, env=self.env, anm_mgr=self.anm_mgr))
             solved.append(count_solved_trajectories(**tensors, env=self.env, anm_mgr=self.anm_mgr))
 
@@ -135,6 +146,11 @@ class ValidationJob:
         solved_tr, all_tr, prc_solved = self._process_stats(solved)
         print(f'{solved_tr} out of {all_tr} trajectories are solved ({prc_solved:.2%})')
         print(f'Trajectory lengths range from {min_len} to {max_len}')
+        print('Tensor shapes:')
+        for key, shape_counts in shapes.items():
+            print(f'  {key}:')
+            for shape, count in shape_counts.items():
+                print(f'    {shape}: {count} occurences')
         print('---------------------------------------')
 
     def execute(self) -> None:

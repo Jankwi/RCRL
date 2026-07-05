@@ -128,7 +128,7 @@ def save_pair_gif(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', default='data/center-maze-13')
+    parser.add_argument('--data_dir', default='data/center-maze')
     parser.add_argument('--grid_dim', type=int, default=13)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--n_vis', type=int, default=3)

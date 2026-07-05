@@ -3,6 +3,22 @@ Conditioning CRTR on abstract goals.
 
 ## Quickstart
 
+### HF dataset download
+First, login:
+```bash
+uv run hf auth login --token your_token_here
+```
+
+Then, download the Takuzu dataset:
+```bash
+uv run hf download Jankwi/Takuzu --local-dir ./data/takuzu --repo-type dataset --include "*"
+```
+
+And the center maze dataset:
+```bash
+uv run hf download Jankwi/Center-Maze --local-dir ./data/center-maze --repo-type dataset --include "*"
+```
+
 ### WANDB login
 First, make sure that you are logged into Weights and Biases, by calling:
 ```bash
