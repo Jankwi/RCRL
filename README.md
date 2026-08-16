@@ -59,7 +59,7 @@ export WANDB_PROJECT=your-wandb-project
 Each experiment is defined by a gin config, living somewhere in the ```configs/``` directory.  
 The main training configs are grouped in the following order:
 * **Environment** (one of ```takuzu/``` or ```center-maze/```)
-* **Goal Type** (one of ```compass/``` (abstract goal) or ```explicit/``` (CRL sanity check))
+* **Goal Type** (one of ```compass/``` (abstract goal) or ```explicit/``` (CRL sanity check & mean heuristic experiment))
 * **Method** (```rcrl.gin``` (ours), or one of the baselines: ```crtr.gin``` and ```crtr-mixed.gin```)  
 
 Our main results can be reproduced by running the training jobs for RCRL on the compass goal, using ```configs/takuzu/compass/rcrl.gin``` and ```configs/center-maze/compass/rcrl.gin```.
