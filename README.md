@@ -22,22 +22,16 @@ uv sync
 ```
 
 ### Datasets
-The datasets used for [Takuzu](https://huggingface.co/datasets/Jankwi/Takuzu) and [Center Maze](https://huggingface.co/datasets/Jankwi/Center-Maze) are both available on Hugging Face. The dataset cards contain information about their structure and references to generation processes. The least complex way to obtain the datasets is to download them straight from Hugging Face.
+The Takuzu and Center Maze datasets are published on Hugging Face, but downloading them from there requires an account and an access token, and the links would identify the authors. For this submission both datasets therefore ship with the repository instead, stored as structural deltas in ```data-tracked/compressed-datasets/```.
 
-For that, a [Hugging Face account and access token](https://huggingface.co/docs/hub/security-tokens) are required, which you use to log in:
+To unpack them into ```data/```, run:
 ```bash
-uv run hf auth login --token your_token_here
+./decompress.sh
 ```
 
-To download the Takuzu dataset run:
-```bash
-uv run hf download Jankwi/Takuzu --local-dir ./data/takuzu --repo-type dataset --include "*"
-```
+This needs no account, token, or network access. It takes about 10 seconds and expands 13 MB of archives into ~2.7 GB of tensors. To also check the reconstructed tensors against the checksums recorded in the manifest, run it as ```./decompress.sh --verify```.
 
-For the Center Maze dataset use:
-```bash
-uv run hf download Jankwi/Center-Maze --local-dir ./data/center-maze --repo-type dataset --include "*"
-```
+The archives are ~400x smaller than the raw data and reconstruct it byte-exactly, which is possible because both datasets are rollouts over a context that stays fixed for a whole episode and changes by a single atomic edit per step. [```data-tracked/compressed-datasets/README.md```](data-tracked/compressed-datasets/README.md) documents the structure of both datasets, their generation, and how the encoding works.
 
 ### WANDB
 All training configs log metrics to [Weights and Biases](https://wandb.ai/) by default. To disable logging, set `MultipleLoggers.wandb` to `False` in the config.
