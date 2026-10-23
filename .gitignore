@@ -5,6 +5,7 @@ CLAUDE.md
 .ruff_cache/
 .venv/
 checkpoints/
+data-original/
 data/
 logs/
 __pycache__/

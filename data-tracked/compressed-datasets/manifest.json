@@ -1,0 +1,485 @@
+{
+  "version": 1,
+  "file_sets": [
+    {
+      "env": "takuzu",
+      "split": "train",
+      "prefix": "blue",
+      "kind": "takuzu",
+      "archive": "takuzu/train/blue.npz.xz",
+      "n": 32768,
+      "outputs": {
+        "trajectories": {
+          "dtype": "uint8",
+          "shape": [
+            32768,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "518abd03e794bef2616da25dc4ee01b7d15b7f184ad3378c1202dce3963d360d"
+        },
+        "algotobad": {
+          "dtype": "uint8",
+          "shape": [
+            32768,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "7c402ff6c9a0a0bb0f581b4df58585c2e5e487d028917c3ec9a384c3a9166b5c"
+        },
+        "lengths": {
+          "dtype": "uint8",
+          "shape": [
+            32768
+          ],
+          "torch": true,
+          "sha256": "3ab395c50668db1e5eec4e287b8516acb8c1cab7d845bf8e46d8f6a328f75173"
+        }
+      }
+    },
+    {
+      "env": "takuzu",
+      "split": "train",
+      "prefix": "green",
+      "kind": "takuzu",
+      "archive": "takuzu/train/green.npz.xz",
+      "n": 32768,
+      "outputs": {
+        "trajectories": {
+          "dtype": "uint8",
+          "shape": [
+            32768,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "6ef83ff502ab8d29cd0786644656ccb9796b8ac3c8b45dc6563d9d3a9d64f8f9"
+        },
+        "algotobad": {
+          "dtype": "uint8",
+          "shape": [
+            32768,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "4cfb5de3af3bd7ccd1a561cb490bce4ce51f06431b84a445aefd6dfeb09b3e1d"
+        },
+        "lengths": {
+          "dtype": "uint8",
+          "shape": [
+            32768
+          ],
+          "torch": true,
+          "sha256": "a5b2b102642e1084b2ca903a9741005b1ccf5f475f3acec4274209ce5c70b02c"
+        }
+      }
+    },
+    {
+      "env": "takuzu",
+      "split": "train",
+      "prefix": "red",
+      "kind": "takuzu",
+      "archive": "takuzu/train/red.npz.xz",
+      "n": 32768,
+      "outputs": {
+        "trajectories": {
+          "dtype": "uint8",
+          "shape": [
+            32768,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "fe01cba44920e1037557d5e21a0d9c17a538ef75313dac06303167fb074ade68"
+        },
+        "algotobad": {
+          "dtype": "uint8",
+          "shape": [
+            32768,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "af41a94eedc447c38fd0b9f153f807e48165d68a41fc0c6711029fef579224a6"
+        },
+        "lengths": {
+          "dtype": "uint8",
+          "shape": [
+            32768
+          ],
+          "torch": true,
+          "sha256": "1f8c7be7cf4c2e2fa455ddb0f85546f03253ef650b7874647fd9ca7c87a8baff"
+        }
+      }
+    },
+    {
+      "env": "takuzu",
+      "split": "train",
+      "prefix": "yellow",
+      "kind": "takuzu",
+      "archive": "takuzu/train/yellow.npz.xz",
+      "n": 32768,
+      "outputs": {
+        "trajectories": {
+          "dtype": "uint8",
+          "shape": [
+            32768,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "49b8c88707099dcb81e06373b3af6cebd84026abf0b0973f37825ff730aba2ca"
+        },
+        "algotobad": {
+          "dtype": "uint8",
+          "shape": [
+            32768,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "c7b014c48f0c9151fdc763432e4b19b07387870d671e1bd39705bc758450bce5"
+        },
+        "lengths": {
+          "dtype": "uint8",
+          "shape": [
+            32768
+          ],
+          "torch": true,
+          "sha256": "52017654bbb8d52cfd590fb80e2ef1cdb99902392fe3c0a0f3a1607fa18597f1"
+        }
+      }
+    },
+    {
+      "env": "takuzu",
+      "split": "valid",
+      "prefix": "purple",
+      "kind": "takuzu",
+      "archive": "takuzu/valid/purple.npz.xz",
+      "n": 8192,
+      "outputs": {
+        "trajectories": {
+          "dtype": "uint8",
+          "shape": [
+            8192,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "996a5caf6575f9461a54aed418613ac1e690b1741c1815efec49d4997dc199f7"
+        },
+        "algotobad": {
+          "dtype": "uint8",
+          "shape": [
+            8192,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "cbe385cc38ec722262b8d859bb173286319479328c4e80f218c6965c5700be30"
+        },
+        "lengths": {
+          "dtype": "uint8",
+          "shape": [
+            8192
+          ],
+          "torch": true,
+          "sha256": "11b4e244c58af9294ca872df861116e93d90111b51f9be8363256e27a5766157"
+        }
+      }
+    },
+    {
+      "env": "takuzu",
+      "split": "test",
+      "prefix": "orange",
+      "kind": "takuzu",
+      "archive": "takuzu/test/orange.npz.xz",
+      "n": 16384,
+      "outputs": {
+        "trajectories": {
+          "dtype": "uint8",
+          "shape": [
+            16384,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "fec737f21f810de5e66c8a43450d53a7cde62d71e48bba5be83c473d86f58c3f"
+        },
+        "algotobad": {
+          "dtype": "uint8",
+          "shape": [
+            16384,
+            49,
+            8,
+            8
+          ],
+          "torch": true,
+          "sha256": "912f543f5a2b8539220626db57db135218a8832ff984144c11e3b8d266017c51"
+        },
+        "lengths": {
+          "dtype": "uint8",
+          "shape": [
+            16384
+          ],
+          "torch": true,
+          "sha256": "5de6f8ca92eb4ae06a5af058e87d4cf21509f5065587034711a9055d12144abf"
+        }
+      }
+    },
+    {
+      "env": "center-maze",
+      "split": "train",
+      "prefix": "train_chunk_0",
+      "kind": "maze",
+      "archive": "center-maze/train/train_chunk_0.npz.xz",
+      "n": 32768,
+      "outputs": {
+        "trajectories": {
+          "dtype": "int8",
+          "shape": [
+            32768,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "efddf78fc423628242289e95679f108cc3ee5abe3b6f28c3cea319479881e0fc"
+        },
+        "algotobad": {
+          "dtype": "int8",
+          "shape": [
+            32768,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "cf5182479a6d5c7be29c1ec38878eb0559257c687a3b67704027351d710451e2"
+        },
+        "lengths": {
+          "dtype": "int32",
+          "shape": [
+            32768
+          ],
+          "torch": false,
+          "sha256": "cc11837c690acc2a77ec3c17b7ab5d57932bec698832b7ce72dac8f3b3bfb311"
+        },
+        "algotobad_lengths": {
+          "dtype": "int32",
+          "shape": [
+            32768
+          ],
+          "torch": false,
+          "sha256": "8d8fb1aba45c496fd3e964189784c1272a58d488b5bf92b54152ec70d1a4a891"
+        }
+      }
+    },
+    {
+      "env": "center-maze",
+      "split": "train",
+      "prefix": "train_chunk_1",
+      "kind": "maze",
+      "archive": "center-maze/train/train_chunk_1.npz.xz",
+      "n": 32768,
+      "outputs": {
+        "trajectories": {
+          "dtype": "int8",
+          "shape": [
+            32768,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "f073fc0f801efbf875c67967a32e6421a548286b959d04cd1c5cc77847996ad4"
+        },
+        "algotobad": {
+          "dtype": "int8",
+          "shape": [
+            32768,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "594a56984c4b32724a8d613c3c14ccdbdefd3c300664523994bf315238e4c7fa"
+        },
+        "lengths": {
+          "dtype": "int32",
+          "shape": [
+            32768
+          ],
+          "torch": false,
+          "sha256": "1c5610ff24b00f6b7aa121b12e2164db20725ecb12a4e4dd51159f6fe7d701ad"
+        },
+        "algotobad_lengths": {
+          "dtype": "int32",
+          "shape": [
+            32768
+          ],
+          "torch": false,
+          "sha256": "7eaaedad5357fa4eaac1c9ded9d8ea2262e21816bf32e7fea8aee45d9bf0e081"
+        }
+      }
+    },
+    {
+      "env": "center-maze",
+      "split": "train",
+      "prefix": "train_chunk_2",
+      "kind": "maze",
+      "archive": "center-maze/train/train_chunk_2.npz.xz",
+      "n": 32768,
+      "outputs": {
+        "trajectories": {
+          "dtype": "int8",
+          "shape": [
+            32768,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "877e2fc0897d64a2e2eecbee76f981b6097bde03cd434473a00930203eb4f39a"
+        },
+        "algotobad": {
+          "dtype": "int8",
+          "shape": [
+            32768,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "c74b5b461c10a7f76db400e43aa98486cf8caa2bb2cff60388fa0997757f941c"
+        },
+        "lengths": {
+          "dtype": "int32",
+          "shape": [
+            32768
+          ],
+          "torch": false,
+          "sha256": "728874166c746976f8cdd54502bc6ace3c514205e1873fe824422f66cdedf936"
+        },
+        "algotobad_lengths": {
+          "dtype": "int32",
+          "shape": [
+            32768
+          ],
+          "torch": false,
+          "sha256": "86b87ca7635952fcf17484e36288b20b0c3c9a55fa0ed295f60e7bcb6611d931"
+        }
+      }
+    },
+    {
+      "env": "center-maze",
+      "split": "train",
+      "prefix": "train_chunk_3",
+      "kind": "maze",
+      "archive": "center-maze/train/train_chunk_3.npz.xz",
+      "n": 32768,
+      "outputs": {
+        "trajectories": {
+          "dtype": "int8",
+          "shape": [
+            32768,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "7edb1328a99a779ad86230badf1d0bbd2d4eaa683e8117862911973b91fc087c"
+        },
+        "algotobad": {
+          "dtype": "int8",
+          "shape": [
+            32768,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "f2f64c2ddfdd59ebabcd9db34e83e21bef228b42f583df1219e5e2e34a6f23a5"
+        },
+        "lengths": {
+          "dtype": "int32",
+          "shape": [
+            32768
+          ],
+          "torch": false,
+          "sha256": "9b0fcb278686115e6e241f0f7e7c4d9a56c5f5beba1006665182e4a931d8aa5e"
+        },
+        "algotobad_lengths": {
+          "dtype": "int32",
+          "shape": [
+            32768
+          ],
+          "torch": false,
+          "sha256": "4b96600c2119c8c3a4cb9903b78572a7aaf005e1d17a9cfc78fb59a3835b6c9e"
+        }
+      }
+    },
+    {
+      "env": "center-maze",
+      "split": "valid",
+      "prefix": "valid_chunk_0",
+      "kind": "maze",
+      "archive": "center-maze/valid/valid_chunk_0.npz.xz",
+      "n": 8192,
+      "outputs": {
+        "trajectories": {
+          "dtype": "int8",
+          "shape": [
+            8192,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "06e07d339ee69ba44a1bb975d42a7bd56b9f4ffec72b2449005acb5ba7886f82"
+        },
+        "algotobad": {
+          "dtype": "int8",
+          "shape": [
+            8192,
+            36,
+            13,
+            13
+          ],
+          "torch": false,
+          "sha256": "148d99a67af4c18aeabac19bd97e3a6f247d0bcb147ea0321c6c54f711333f27"
+        },
+        "lengths": {
+          "dtype": "int32",
+          "shape": [
+            8192
+          ],
+          "torch": false,
+          "sha256": "b426cc1268acb3683bf92efacae006ceb8426d00f9a9717af56d1e521572d09c"
+        },
+        "algotobad_lengths": {
+          "dtype": "int32",
+          "shape": [
+            8192
+          ],
+          "torch": false,
+          "sha256": "a708bce89f6c7d790808d937f1c25c1e744ecf1d1d1c9f8f8e652d8250836ec4"
+        }
+      }
+    }
+  ]
+}

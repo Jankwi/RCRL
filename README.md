@@ -39,6 +39,16 @@ For the Center Maze dataset use:
 uv run hf download Jankwi/Center-Maze --local-dir ./data/center-maze --repo-type dataset --include "*"
 ```
 
+#### Compressed datasets (no account needed)
+Alternatively, both datasets also ship with the repository, stored as structural deltas in ```data-tracked/compressed-datasets/```. To unpack them into ```data/```, run:
+```bash
+./decompress.sh
+```
+
+This needs no account, token, or network access. It takes about 10 seconds and expands 13 MB of archives into ~2.7 GB of tensors. To also check the reconstructed tensors against the checksums recorded in the manifest, run it as ```./decompress.sh --verify```.
+
+The archives are ~400x smaller than the raw data and reconstruct it byte-exactly, which is possible because both datasets are rollouts over a context that stays fixed for a whole episode and changes by a single atomic edit per step. [```data-tracked/compressed-datasets/README.md```](data-tracked/compressed-datasets/README.md) documents the structure of both datasets, their generation, and how the encoding works.
+
 ### WANDB
 All training configs log metrics to [Weights and Biases](https://wandb.ai/) by default. To disable logging, set `MultipleLoggers.wandb` to `False` in the config.
 
@@ -59,7 +69,7 @@ export WANDB_PROJECT=your-wandb-project
 Each experiment is defined by a gin config, living somewhere in the ```configs/``` directory.  
 The main training configs are grouped in the following order:
 * **Environment** (one of ```takuzu/``` or ```center-maze/```)
-* **Goal Type** (one of ```compass/``` (abstract goal) or ```explicit/``` (CRL sanity check))
+* **Goal Type** (one of ```compass/``` (abstract goal) or ```explicit/``` (CRL sanity check & mean heuristic experiment))
 * **Method** (```rcrl.gin``` (ours), or one of the baselines: ```crtr.gin``` and ```crtr-mixed.gin```)  
 
 Our main results can be reproduced by running the training jobs for RCRL on the compass goal, using ```configs/takuzu/compass/rcrl.gin``` and ```configs/center-maze/compass/rcrl.gin```.
