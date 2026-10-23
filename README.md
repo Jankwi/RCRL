@@ -1,5 +1,21 @@
 # Relative Contrastive Reinforcement Learning (RCRL)
-This repository contains code for Relative Contrastive Reinforcement Learning (RCRL) experiments on 2 combinatorial environments: Takuzu and Center Maze.
+<p align="center">
+  <strong>Jan Kwieciński</strong><sup>*</sup> ·
+  <strong>Alicja Ziarko</strong><sup>*</sup> ·
+  <strong>Piotr Miłoś</strong> ·
+  <strong>Benjamin Eysenbach</strong>
+  <br>
+  <sub><sup>*</sup> Equal contribution</sub>
+</p>
+
+This is the public repository of the Relative Contrastive Reinforcement Learning (RCRL) project.
+
+[The Extended Abstract](https://openreview.net/pdf?id=gi9GYOmUfQ) has been accepted into NeurIPS 2026 workshops [PTA](https://ptaworkshop.github.io/) ([OpenReview](https://openreview.net/forum?id=gi9GYOmUfQ)) and [NeurReps](https://neurreps.org/). The project was also presented at the [ML in PL 2026 conference](https://conference.mlinpl.org/2026/program#srw-talk-3) ([Slides](https://docs.google.com/presentation/d/1QQS8urNg-ja3zIHisFEGHtkQtTfe_NBEwR49aK5siPM/edit?usp=sharing)).
+
+There is still more to be done :)).
+
+## Experiments Code
+This repo contains experiments on 2 combinatorial environments: Takuzu and Center Maze.
 
 If you just want to reproduce RCRL runs with abstract goals, ensure you have the [Prerequisites](#prerequisites) covered, and run:
 ```bash
